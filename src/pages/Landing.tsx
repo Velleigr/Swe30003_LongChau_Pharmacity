@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
 import StatCard from '../components/ui/StatCard';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import InteractiveWorkflow from '../components/ui/InteractiveWorkflow';
@@ -32,23 +31,55 @@ interface Product {
 interface Review {
   id: string;
   rating: number;
-  comment: string | null;
-  users: {
-    full_name: string | null;
-    username: string;
-  };
-  products: {
-    name: string;
-  };
+  comment: string;
+  customerName: string;
+  productName: string;
 }
 
 const Landing: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [currentReview, setCurrentReview] = useState(0);
+  const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
 
+  // Hard-coded reviews as requested
+  const reviews: Review[] = [
+    {
+      id: '1',
+      rating: 5,
+      comment: 'Sản phẩm rất tốt, dùng được 2 tháng thấy tim mạch ổn định hơn nhiều. Sẽ tiếp tục sử dụng.',
+      customerName: 'Lê Văn Khách',
+      productName: 'Thuốc Tim Mạch Cardio Plus'
+    },
+    {
+      id: '2',
+      rating: 4,
+      comment: 'Kem dưỡng da rất dịu nhẹ, không gây kích ứng. Da mình nhạy cảm mà dùng rất ổn.',
+      customerName: 'Phạm Thị Hoa',
+      productName: 'Kem Dưỡng Da Sensitive Care'
+    },
+    {
+      id: '3',
+      rating: 5,
+      comment: 'Serum vitamin C này hiệu quả thật sự! Da sáng lên rõ rệt sau 3 tuần sử dụng.',
+      customerName: 'Hoàng Minh Tuấn',
+      productName: 'Serum Vitamin C Brightening'
+    },
+    {
+      id: '4',
+      rating: 4,
+      comment: 'CoQ10 chất lượng tốt, cảm thấy có năng lượng hơn sau khi dùng. Giá cả hợp lý.',
+      customerName: 'Nguyễn Thị Mai',
+      productName: 'Viên Uống Hỗ Trợ Tim Mạch CoQ10'
+    },
+    {
+      id: '5',
+      rating: 5,
+      comment: 'Sữa rửa mặt rất nhẹ nhàng, không làm khô da. Phù hợp với da nhạy cảm như mình.',
+      customerName: 'Trần Văn Nam',
+      productName: 'Sữa Rửa Mặt Gentle Cleanser'
+    }
+  ];
   const categories = [
     { id: 'all', name: 'Tất cả', icon: Heart },
     { id: 'Heart', name: 'Tim mạch', icon: Heart },
@@ -87,35 +118,75 @@ const Landing: React.FC = () => {
   ];
 
   useEffect(() => {
-    fetchData();
+    fetchProducts();
   }, []);
 
-  const fetchData = async () => {
+  // Auto-slide reviews every 4 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentReviewIndex((prev) => (prev + 1) % reviews.length);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [reviews.length]);
+
+  const fetchProducts = async () => {
     try {
-      // Fetch products
-      const { data: productsData, error: productsError } = await supabase
-        .from('products')
-        .select('*')
-        .limit(6);
+      // Mock products data for now - replace with actual Supabase call when configured
+      const mockProducts: Product[] = [
+        {
+          id: '1',
+          name: 'Thuốc Tim Mạch Cardio Plus',
+          description: 'Hỗ trợ tim mạch, giảm cholesterol xấu, tăng cường sức khỏe tim mạch. Thành phần thiên nhiên an toàn.',
+          price: 250000,
+          category: 'Heart',
+          image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg'
+        },
+        {
+          id: '2',
+          name: 'Viên Uống Hỗ Trợ Tim Mạch CoQ10',
+          description: 'Bổ sung CoQ10 tự nhiên, hỗ trợ chức năng tim, tăng cường năng lượng cho cơ thể.',
+          price: 180000,
+          category: 'Heart',
+          image_url: 'https://images.pexels.com/photos/3683077/pexels-photo-3683077.jpeg'
+        },
+        {
+          id: '3',
+          name: 'Kem Dưỡng Da Sensitive Care',
+          description: 'Kem dưỡng da nhạy cảm, không gây kích ứng, phù hợp cho mọi loại da.',
+          price: 85000,
+          category: 'Skin',
+          image_url: 'https://images.pexels.com/photos/3762879/pexels-photo-3762879.jpeg'
+        },
+        {
+          id: '4',
+          name: 'Serum Vitamin C Brightening',
+          description: 'Serum vitamin C tự nhiên, làm sáng da, chống lão hóa, giảm thâm nám hiệu quả.',
+          price: 320000,
+          category: 'Skin',
+          image_url: 'https://images.pexels.com/photos/3762882/pexels-photo-3762882.jpeg'
+        },
+        {
+          id: '5',
+          name: 'Viên Uống Omega-3 Fish Oil',
+          description: 'Bổ sung Omega-3 từ dầu cá tự nhiên, hỗ trợ não bộ và tim mạch.',
+          price: 280000,
+          category: 'Heart',
+          image_url: 'https://images.pexels.com/photos/3683078/pexels-photo-3683078.jpeg'
+        },
+        {
+          id: '6',
+          name: 'Sữa Rửa Mặt Gentle Cleanser',
+          description: 'Sữa rửa mặt dịu nhẹ, phù hợp cho da nhạy cảm, không làm khô da.',
+          price: 65000,
+          category: 'Skin',
+          image_url: 'https://images.pexels.com/photos/3762888/pexels-photo-3762888.jpeg'
+        }
+      ];
 
-      // Fetch reviews with user and product info
-      const { data: reviewsData, error: reviewsError } = await supabase
-        .from('reviews')
-        .select(`
-          *,
-          users (full_name, username),
-          products (name)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (productsError) throw productsError;
-      if (reviewsError) throw reviewsError;
-
-      setProducts(productsData || []);
-      setReviews(reviewsData || []);
+      setProducts(mockProducts);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching products:', error);
     } finally {
       setLoading(false);
     }
@@ -125,13 +196,6 @@ const Landing: React.FC = () => {
     ? products 
     : products.filter(product => product.category === selectedCategory);
 
-  const nextReview = () => {
-    setCurrentReview((prev) => (prev + 1) % reviews.length);
-  };
-
-  const prevReview = () => {
-    setCurrentReview((prev) => (prev - 1 + reviews.length) % reviews.length);
-  };
 
   if (loading) {
     return (
@@ -329,42 +393,73 @@ const Landing: React.FC = () => {
             </p>
           </div>
 
-          {reviews.length > 0 && (
-            <div className="relative max-w-4xl mx-auto">
-              <div className="bg-white rounded-xl shadow-lg p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <button
-                    onClick={prevReview}
-                    className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-                  >
-                    <ChevronLeft className="w-6 h-6 text-gray-600" />
-                  </button>
-                  <div className="flex-1 text-center">
+          <div className="relative max-w-4xl mx-auto overflow-hidden">
+            <div className="bg-white rounded-xl shadow-lg p-8 relative">
+              <div 
+                className="flex transition-transform duration-1000 ease-in-out"
+                style={{ transform: `translateX(-${currentReviewIndex * 100}%)` }}
+              >
+                {reviews.map((review, index) => (
+                  <div key={review.id} className="w-full flex-shrink-0 text-center">
                     <div className="flex items-center justify-center mb-4">
                       {[...Array(5)].map((_, i) => (
                         <Star
                           key={i}
                           className={`w-5 h-5 ${
-                            i < reviews[currentReview].rating
+                            i < review.rating
                               ? 'text-yellow-400 fill-current'
                               : 'text-gray-300'
                           }`}
                         />
                       ))}
                     </div>
-                    <p className="text-gray-700 text-lg mb-4">
-                      "{reviews[currentReview].comment || 'Sản phẩm tuyệt vời, tôi rất hài lòng!'}"
+                    <p className="text-gray-700 text-lg mb-4 max-w-2xl mx-auto">
+                      "{review.comment}"
                     </p>
                     <div className="text-sm text-gray-500">
                       <p className="font-semibold">
-                        {reviews[currentReview].users.full_name || reviews[currentReview].users.username}
+                        {review.customerName}
                       </p>
-                      <p>Sản phẩm: {reviews[currentReview].products.name}</p>
+                      <p>Sản phẩm: {review.productName}</p>
                     </div>
                   </div>
+                ))}
+              </div>
+              
+              {/* Review indicators */}
+              <div className="flex justify-center mt-6 space-x-2">
+                {reviews.map((_, index) => (
                   <button
-                    onClick={nextReview}
-                    className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
-                  >
-                    <ChevronRight className="w-6 h-6 text-gray-600" />
+                    key={index}
+                    onClick={() => setCurrentReviewIndex(index)}
+                    className={`w-3 h-3 rounded-full transition-colors ${
+                      index === currentReviewIndex
+                        ? 'bg-blue-600'
+                        : 'bg-gray-300 hover:bg-gray-400'
+                    }`}
+                  />
+                ))}
+              </div>
+              
+              {/* Navigation arrows */}
+              <button
+                onClick={() => setCurrentReviewIndex((prev) => (prev - 1 + reviews.length) % reviews.length)}
+                className="absolute left-4 top-1/2 transform -translate-y-1/2 p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors opacity-75 hover:opacity-100"
+              >
+                <ChevronLeft className="w-6 h-6 text-gray-600" />
+              </button>
+              <button
+                onClick={() => setCurrentReviewIndex((prev) => (prev + 1) % reviews.length)}
+                className="absolute right-4 top-1/2 transform -translate-y-1/2 p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors opacity-75 hover:opacity-100"
+              >
+                <ChevronRight className="w-6 h-6 text-gray-600" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+};
+
 export default Landing;

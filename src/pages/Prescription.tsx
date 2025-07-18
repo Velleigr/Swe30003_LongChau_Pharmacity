@@ -1,0 +1,390 @@
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
+import DeliveryTracker from '../components/ui/DeliveryTracker';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
+import {
+  FileText,
+  Upload,
+  Camera,
+  CheckCircle,
+  AlertCircle,
+  Clock,
+  User,
+  Phone,
+  MapPin
+} from 'lucide-react';
+
+interface PrescriptionForm {
+  patientName: string;
+  patientPhone: string;
+  patientAddress: string;
+  doctorName: string;
+  hospitalName: string;
+  prescriptionText: string;
+  prescriptionImage: File | null;
+}
+
+const Prescription: React.FC = () => {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'text' | 'image'>('text');
+  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [prescriptionId, setPrescriptionId] = useState<string | null>(null);
+  const [form, setForm] = useState<PrescriptionForm>({
+    patientName: '',
+    patientPhone: '',
+    patientAddress: '',
+    doctorName: '',
+    hospitalName: '',
+    prescriptionText: '',
+    prescriptionImage: null
+  });
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setForm(prev => ({ ...prev, prescriptionImage: e.target.files![0] }));
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+
+    setLoading(true);
+    try {
+      let imageUrl = null;
+      
+      // If image is uploaded, you would upload it to Supabase storage here
+      // For demo purposes, we'll use a placeholder URL
+      if (form.prescriptionImage) {
+        imageUrl = 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg';
+      }
+
+      const { data, error } = await supabase
+        .from('prescriptions')
+        .insert([
+          {
+            user_id: user.id,
+            prescription_text: form.prescriptionText || null,
+            image_url: imageUrl,
+            status: 'pending'
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setPrescriptionId(data.id);
+      setSubmitted(true);
+    } catch (error) {
+      console.error('Error submitting prescription:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-xl shadow-lg text-center">
+          <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            Cần đăng nhập
+          </h2>
+          <p className="text-gray-600">
+            Vui lòng đăng nhập để sử dụng dịch vụ đơn thuốc
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-12">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-8"
+          >
+            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Đơn thuốc đã được gửi thành công!
+            </h1>
+            <p className="text-gray-600">
+              Mã đơn thuốc: <span className="font-mono text-blue-600">{prescriptionId}</span>
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <DeliveryTracker currentStep={1} orderStatus="pending" />
+            
+            <div className="bg-white rounded-xl p-6 shadow-lg">
+              <h3 className="text-lg font-semibold mb-4 text-gray-900">
+                Thông tin liên hệ
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-3">
+                  <User className="w-5 h-5 text-gray-400" />
+                  <span className="text-gray-700">{form.patientName}</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Phone className="w-5 h-5 text-gray-400" />
+                  <span className="text-gray-700">{form.patientPhone}</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <MapPin className="w-5 h-5 text-gray-400" />
+                  <span className="text-gray-700">{form.patientAddress}</span>
+                </div>
+              </div>
+              
+              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                <h4 className="font-semibold text-blue-900 mb-2">
+                  Quy trình tiếp theo:
+                </h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Dược sĩ sẽ kiểm tra đơn thuốc</li>
+                  <li>• Xác nhận tương tác thuốc</li>
+                  <li>• Tạo đơn hàng tự động khi được phê duyệt</li>
+                  <li>• Giao hàng tận nơi</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-12">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="text-center mb-8"
+        >
+          <FileText className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+            Tải lên đơn thuốc
+          </h1>
+          <p className="text-gray-600">
+            Gửi đơn thuốc để dược sĩ kiểm tra và xử lý
+          </p>
+        </motion.div>
+
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          {/* Tab Navigation */}
+          <div className="border-b border-gray-200">
+            <nav className="flex">
+              <button
+                onClick={() => setActiveTab('text')}
+                className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
+                  activeTab === 'text'
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <FileText className="w-5 h-5 mx-auto mb-1" />
+                Nhập văn bản
+              </button>
+              <button
+                onClick={() => setActiveTab('image')}
+                className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
+                  activeTab === 'image'
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Camera className="w-5 h-5 mx-auto mb-1" />
+                Tải ảnh lên
+              </button>
+            </nav>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6">
+            {/* Patient Information */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Thông tin bệnh nhân
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Họ và tên *
+                  </label>
+                  <input
+                    type="text"
+                    name="patientName"
+                    value={form.patientName}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Nhập họ và tên"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Số điện thoại *
+                  </label>
+                  <input
+                    type="tel"
+                    name="patientPhone"
+                    value={form.patientPhone}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Nhập số điện thoại"
+                  />
+                </div>
+              </div>
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Địa chỉ giao hàng *
+                </label>
+                <input
+                  type="text"
+                  name="patientAddress"
+                  value={form.patientAddress}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Nhập địa chỉ giao hàng"
+                />
+              </div>
+            </div>
+
+            {/* Doctor Information */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Thông tin bác sĩ
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tên bác sĩ
+                  </label>
+                  <input
+                    type="text"
+                    name="doctorName"
+                    value={form.doctorName}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Nhập tên bác sĩ"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Bệnh viện/Phòng khám
+                  </label>
+                  <input
+                    type="text"
+                    name="hospitalName"
+                    value={form.hospitalName}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Nhập tên bệnh viện"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Prescription Content */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Nội dung đơn thuốc
+              </h3>
+              
+              {activeTab === 'text' ? (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nhập đơn thuốc *
+                  </label>
+                  <textarea
+                    name="prescriptionText"
+                    value={form.prescriptionText}
+                    onChange={handleInputChange}
+                    required
+                    rows={8}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Nhập chi tiết đơn thuốc bao gồm:
+- Tên thuốc
+- Liều lượng
+- Cách dùng
+- Số lượng
+- Ghi chú đặc biệt"
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Tải ảnh đơn thuốc *
+                  </label>
+                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-blue-400 transition-colors">
+                    <div className="space-y-1 text-center">
+                      <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                      <div className="flex text-sm text-gray-600">
+                        <label className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                          <span>Chọn ảnh</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                            className="sr-only"
+                          />
+                        </label>
+                        <p className="pl-1">hoặc kéo thả</p>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        PNG, JPG, JPEG tối đa 10MB
+                      </p>
+                      {form.prescriptionImage && (
+                        <p className="text-sm text-green-600 mt-2">
+                          Đã chọn: {form.prescriptionImage.name}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Submit Button */}
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors inline-flex items-center"
+              >
+                {loading ? (
+                  <>
+                    <LoadingSpinner size="sm" className="mr-2" />
+                    Đang xử lý...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Gửi đơn thuốc
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Prescription;

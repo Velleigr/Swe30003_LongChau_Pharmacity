@@ -367,15 +367,4 @@ const Landing: React.FC = () => {
                     className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
                   >
                     <ChevronRight className="w-6 h-6 text-gray-600" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-    </div>
-  );
-};
-
 export default Landing;

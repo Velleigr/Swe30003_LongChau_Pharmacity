@@ -87,39 +87,10 @@ const Landing: React.FC = () => {
   ];
 
   useEffect(() => {
-    fetchData();
+    // Use mock data instead of fetching from Supabase
+    setProducts(mockProducts);
+    setLoading(false);
   }, []);
-
-  const fetchData = async () => {
-    try {
-      // Fetch products
-      const { data: productsData, error: productsError } = await supabase
-        .from('products')
-        .select('*')
-        .limit(6);
-
-      // Fetch reviews with user and product info
-      const { data: reviewsData, error: reviewsError } = await supabase
-        .from('reviews')
-        .select(`
-          *,
-          users (full_name, username),
-          products (name)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (productsError) throw productsError;
-      if (reviewsError) throw reviewsError;
-
-      setProducts(productsData || []);
-      setReviews(reviewsData || []);
-    } catch (error) {
-      console.error('Error fetching data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filteredProducts = selectedCategory === 'all' 
     ? products 

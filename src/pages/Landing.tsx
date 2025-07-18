@@ -49,6 +49,57 @@ const Landing: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [currentReview, setCurrentReview] = useState(0);
 
+  const mockProducts: Product[] = [
+    {
+      id: '1',
+      name: 'Paracetamol 500mg',
+      price: 25000,
+      category: 'Heart',
+      image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
+      description: 'Thuốc giảm đau, hạ sốt hiệu quả'
+    },
+    {
+      id: '2',
+      name: 'Vitamin C 1000mg',
+      price: 150000,
+      category: 'Skin',
+      image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
+      description: 'Bổ sung vitamin C tăng cường sức đề kháng'
+    },
+    {
+      id: '3',
+      name: 'Aspirin 100mg',
+      price: 45000,
+      category: 'Heart',
+      image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
+      description: 'Thuốc chống đông máu, bảo vệ tim mạch'
+    },
+    {
+      id: '4',
+      name: 'Omega-3',
+      price: 320000,
+      category: 'Heart',
+      image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
+      description: 'Bổ sung acid béo omega-3 cho tim mạch'
+    },
+    {
+      id: '5',
+      name: 'Kem dưỡng da',
+      price: 180000,
+      category: 'Skin',
+      image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
+      description: 'Kem dưỡng da chống lão hóa'
+    },
+    {
+      id: '6',
+      name: 'Serum Vitamin E',
+      price: 250000,
+      category: 'Skin',
+      image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
+      description: 'Serum dưỡng da với vitamin E tự nhiên'
+    }
+  ];
+
   const categories = [
     { id: 'all', name: 'Tất cả', icon: Heart },
     { id: 'Heart', name: 'Tim mạch', icon: Heart },

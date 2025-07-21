@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
+import LoginModal from '../ui/LoginModal';
 import { 
   Heart, 
   ShoppingCart, 
@@ -15,6 +16,7 @@ import {
 
 const Header: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const { user, logout } = useAuth();
   const { totalItems } = useCart();
   const location = useLocation();
@@ -49,13 +51,13 @@ const Header: React.FC = () => {
                 to={item.href}
                 className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   isActive(item.href)
-                    ? 'text-blue-600 bg-blue-50'
-                    : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
-                }`}
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
               >
                 <item.icon className="w-4 h-4" />
                 <span>{item.name}</span>
-              </Link>
+              </button>
             ))}
           </nav>
 
@@ -146,6 +148,12 @@ const Header: React.FC = () => {
           </div>
         )}
       </div>
+      
+      {/* Login Modal */}
+      <LoginModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => setIsLoginModalOpen(false)} 
+      />
     </header>
   );
 };

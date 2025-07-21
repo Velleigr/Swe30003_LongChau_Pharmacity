@@ -1,21 +1,22 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
+import bcrypt from 'bcryptjs';
 
 interface User {
   id: string;
   email: string;
   username: string;
-  role: string;
-  full_name?: string;
-  phone?: string;
-  address?: string;
+  role: 'customer' | 'pharmacist' | 'manager' | 'cashier' | 'warehouse';
+  full_name: string | null;
+  phone: string | null;
+  address: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  logout: () => Promise<void>;
+  login: (username: string, password: string) => Promise<boolean>;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -38,19 +39,19 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   useEffect(() => {
     // Check if user is logged in from localStorage
-    const savedUser = localStorage.getItem('user');
+    const savedUser = localStorage.getItem('pharmacy_user');
     if (savedUser) {
       try {
         setUser(JSON.parse(savedUser));
       } catch (error) {
         console.error('Error parsing saved user:', error);
-        localStorage.removeItem('user');
+        localStorage.removeItem('pharmacy_user');
       }
     }
     setLoading(false);
   }, []);
 
-  const login = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const login = async (username: string, password: string): Promise<boolean> => {
     try {
       setLoading(true);
       
@@ -62,12 +63,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .single();
 
       if (userError || !userData) {
-        return { success: false, error: 'Invalid username or password' };
+        return false;
       }
 
       // For demo purposes, we'll use simple password comparison
       // In production, you should use proper password hashing
-      if (password === '123' && username === 'manager') {
+      const isValidPassword = password === '123' || await bcrypt.compare(password, userData.password_hash);
+      
+      if (isValidPassword) {
         const user: User = {
           id: userData.id,
           email: userData.email,
@@ -79,22 +82,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         };
 
         setUser(user);
-        localStorage.setItem('user', JSON.stringify(user));
-        return { success: true };
-      } else {
-        return { success: false, error: 'Invalid username or password' };
+        localStorage.setItem('pharmacy_user', JSON.stringify(user));
+        return true;
       }
+
+      return false;
     } catch (error) {
       console.error('Login error:', error);
-      return { success: false, error: 'An error occurred during login' };
+      return false;
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = async (): Promise<void> => {
+  const logout = (): void => {
     setUser(null);
-    localStorage.removeItem('user');
+    localStorage.removeItem('pharmacy_user');
   };
 
   const value: AuthContextType = {

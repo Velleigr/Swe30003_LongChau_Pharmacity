@@ -51,13 +51,13 @@ const Header: React.FC = () => {
                 to={item.href}
                 className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   isActive(item.href)
-              <button
-                onClick={() => setIsLoginModalOpen(true)}
-                className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                    ? 'text-blue-600 bg-blue-50'
+                    : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
+                }`}
               >
                 <item.icon className="w-4 h-4" />
                 <span>{item.name}</span>
-              </button>
+              </Link>
             ))}
           </nav>
 

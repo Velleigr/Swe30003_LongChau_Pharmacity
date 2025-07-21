@@ -5,7 +5,6 @@ import { CartProvider } from './contexts/CartContext';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
 import Landing from './pages/Landing';
-import Login from './pages/Login';
 import Prescription from './pages/Prescription';
 import Order from './pages/Order';
 import Cart from './pages/Cart';
@@ -23,7 +22,6 @@ function App() {
             <main className="flex-1">
               <Routes>
                 <Route path="/" element={<Landing />} />
-                <Route path="/login" element={<Login />} />
                 <Route path="/prescription" element={<Prescription />} />
                 <Route path="/order" element={<Order />} />
                 <Route path="/order/cart" element={<Cart />} />

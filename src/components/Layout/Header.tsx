@@ -50,14 +50,13 @@ const Header: React.FC = () => {
                 key={item.name}
                 to={item.href}
                 className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  isActive(item.href)
-                    ? 'text-blue-600 bg-blue-50'
+              <button
                     : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50'
-                }`}
+                className="flex items-center space-x-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
               >
-                <item.icon className="w-4 h-4" />
-                <span>{item.name}</span>
-              </Link>
+                <User className="w-4 h-4" />
+                <span>Đăng nhập</span>
+              </button>
             ))}
           </nav>
 

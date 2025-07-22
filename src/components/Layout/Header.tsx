@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import LoginModal from '../ui/LoginModal';
-import LoginModal from '../ui/LoginModal';
 import { 
   Heart, 
   ShoppingCart, 

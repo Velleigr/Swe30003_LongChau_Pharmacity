@@ -44,7 +44,6 @@ interface Review {
 
 const Landing: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [currentReview, setCurrentReview] = useState(0);
@@ -100,6 +99,69 @@ const Landing: React.FC = () => {
     }
   ];
 
+  const mockReviews: Review[] = [
+    {
+      id: '1',
+      rating: 5,
+      comment: 'Sản phẩm chất lượng tuyệt vời, giao hàng nhanh chóng. Tôi rất hài lòng với dịch vụ của Long Châu!',
+      users: {
+        full_name: 'Nguyễn Văn An',
+        username: 'nguyenvanan'
+      },
+      products: {
+        name: 'Paracetamol 500mg'
+      }
+    },
+    {
+      id: '2',
+      rating: 5,
+      comment: 'Dược sĩ tư vấn rất nhiệt tình và chuyên nghiệp. Thuốc có hiệu quả cao, giá cả hợp lý.',
+      users: {
+        full_name: 'Trần Thị Bình',
+        username: 'tranthibinh'
+      },
+      products: {
+        name: 'Vitamin C 1000mg'
+      }
+    },
+    {
+      id: '3',
+      rating: 4,
+      comment: 'Hệ thống đặt hàng online rất tiện lợi, giao hàng đúng hẹn. Sẽ tiếp tục ủng hộ Long Châu.',
+      users: {
+        full_name: 'Lê Minh Cường',
+        username: 'leminhcuong'
+      },
+      products: {
+        name: 'Aspirin 100mg'
+      }
+    },
+    {
+      id: '4',
+      rating: 5,
+      comment: 'Đơn thuốc được kiểm tra kỹ lưỡng, an toàn tuyệt đối. Cảm ơn đội ngũ dược sĩ Long Châu!',
+      users: {
+        full_name: 'Phạm Thị Dung',
+        username: 'phamthidung'
+      },
+      products: {
+        name: 'Omega-3'
+      }
+    },
+    {
+      id: '5',
+      rating: 4,
+      comment: 'Sản phẩm chăm sóc da rất hiệu quả, da tôi đã cải thiện rõ rệt sau 2 tuần sử dụng.',
+      users: {
+        full_name: 'Hoàng Văn Em',
+        username: 'hoangvanem'
+      },
+      products: {
+        name: 'Kem dưỡng da'
+      }
+    }
+  ];
+
   const categories = [
     { id: 'all', name: 'Tất cả', icon: Heart },
     { id: 'Heart', name: 'Tim mạch', icon: Heart },
@@ -152,18 +214,6 @@ const Landing: React.FC = () => {
       if (productsError) throw productsError;
       setProducts(productsData || []);
 
-      // Fetch reviews with user and product information
-      const { data: reviewsData, error: reviewsError } = await supabase
-        .from('reviews')
-        .select(`
-          *,
-          users!inner(full_name, username),
-          products!inner(name)
-        `)
-        .order('created_at', { ascending: false });
-
-      if (reviewsError) throw reviewsError;
-      setReviews(reviewsData || []);
     } catch (error) {
       console.error('Error fetching data:', error);
       // Fallback to mock data if database fails
@@ -178,11 +228,11 @@ const Landing: React.FC = () => {
     : products.filter(product => product.category === selectedCategory);
 
   const nextReview = () => {
-    setCurrentReview((prev) => (prev + 1) % reviews.length);
+    setCurrentReview((prev) => (prev + 1) % mockReviews.length);
   };
 
   const prevReview = () => {
-    setCurrentReview((prev) => (prev - 1 + reviews.length) % reviews.length);
+    setCurrentReview((prev) => (prev - 1 + mockReviews.length) % mockReviews.length);
   };
 
   if (loading) {
@@ -381,7 +431,7 @@ const Landing: React.FC = () => {
             </p>
           </div>
 
-          {reviews.length > 0 && (
+          {mockReviews.length > 0 && (
             <div className="relative max-w-4xl mx-auto">
               <div className="bg-white rounded-xl shadow-lg p-8">
                 <div className="flex items-center justify-between mb-6">
@@ -397,7 +447,7 @@ const Landing: React.FC = () => {
                         <Star
                           key={i}
                           className={`w-5 h-5 ${
-                            i < reviews[currentReview].rating
+                            i < mockReviews[currentReview].rating
                               ? 'text-yellow-400 fill-current'
                               : 'text-gray-300'
                           }`}
@@ -405,13 +455,13 @@ const Landing: React.FC = () => {
                       ))}
                     </div>
                     <p className="text-gray-700 text-lg mb-4">
-                      "{reviews[currentReview].comment || 'Sản phẩm tuyệt vời, tôi rất hài lòng!'}"
+                      "{mockReviews[currentReview].comment || 'Sản phẩm tuyệt vời, tôi rất hài lòng!'}"
                     </p>
                     <div className="text-sm text-gray-500">
                       <p className="font-semibold">
-                        {reviews[currentReview].users.full_name || reviews[currentReview].users.username}
+                        {mockReviews[currentReview].users.full_name || mockReviews[currentReview].users.username}
                       </p>
-                      <p>Sản phẩm: {reviews[currentReview].products.name}</p>
+                      <p>Sản phẩm: {mockReviews[currentReview].products.name}</p>
                     </div>
                   </div>
                   <button

@@ -59,30 +59,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
-        .eq('username', username)
-        .single();
+        .eq('username', username);
 
-      if (userError || !userData) {
+      if (userError || !userData || userData.length === 0) {
         return false;
       }
 
+      const user = userData[0];
+
       // For demo purposes, we'll use simple password comparison
       // In production, you should use proper password hashing
-      const isValidPassword = password === '123' || await bcrypt.compare(password, userData.password_hash);
+      const isValidPassword = password === '123' || await bcrypt.compare(password, user.password_hash);
       
       if (isValidPassword) {
-        const user: User = {
-          id: userData.id,
-          email: userData.email,
-          username: userData.username,
-          role: userData.role,
-          full_name: userData.full_name,
-          phone: userData.phone,
-          address: userData.address,
+        const userObj: User = {
+          id: user.id,
+          email: user.email,
+          username: user.username,
+          role: user.role,
+          full_name: user.full_name,
+          phone: user.phone,
+          address: user.address,
         };
 
-        setUser(user);
-        localStorage.setItem('pharmacy_user', JSON.stringify(user));
+        setUser(userObj);
+        localStorage.setItem('pharmacy_user', JSON.stringify(userObj));
         return true;
       }
 

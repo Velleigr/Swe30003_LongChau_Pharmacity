@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import LoginModal from '../ui/LoginModal';
+import LoginModal from '../ui/LoginModal';
 import { 
   Heart, 
   ShoppingCart, 
@@ -148,6 +149,12 @@ const Header: React.FC = () => {
           </div>
         )}
       </div>
+      
+      {/* Login Modal */}
+      <LoginModal 
+        isOpen={isLoginModalOpen} 
+        onClose={() => setIsLoginModalOpen(false)} 
+      />
       
       {/* Login Modal */}
       <LoginModal 

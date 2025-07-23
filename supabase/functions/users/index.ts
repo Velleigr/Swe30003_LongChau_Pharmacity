@@ -29,8 +29,7 @@ interface LoginRequest {
   password: string;
 }
 
-interface SignUpRe
-  quest {
+interface SignUpRequest {
   email: string;
   username: string;
   password: string;

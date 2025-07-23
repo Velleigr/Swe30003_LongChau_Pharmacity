@@ -1,6 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
-import bcrypt from 'bcryptjs';
 
 interface User {
   id: string;
@@ -37,6 +35,37 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Demo accounts for when Supabase is not configured
+  const demoAccounts = [
+    {
+      id: '550e8400-e29b-41d4-a716-446655440000',
+      email: 'manager@longchau.com',
+      username: 'manager',
+      role: 'manager' as const,
+      full_name: 'Nguyễn Văn Quản Lý',
+      phone: '0901234567',
+      address: '123 Nguyễn Huệ, Q.1, TP.HCM'
+    },
+    {
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      email: 'pharmacist@longchau.com',
+      username: 'pharmacist',
+      role: 'pharmacist' as const,
+      full_name: 'Trần Thị Dược Sĩ',
+      phone: '0901234568',
+      address: '456 Lê Lợi, Q.1, TP.HCM'
+    },
+    {
+      id: '550e8400-e29b-41d4-a716-446655440002',
+      email: 'customer1@gmail.com',
+      username: 'customer1',
+      role: 'customer' as const,
+      full_name: 'Lê Văn Khách',
+      phone: '0901234569',
+      address: '789 Hai Bà Trưng, Q.3, TP.HCM'
+    }
+  ];
+
   useEffect(() => {
     // Check if user is logged in from localStorage
     const savedUser = localStorage.getItem('pharmacy_user');
@@ -55,31 +84,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       
-      // Query the users table for the username
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('username', username);
-
-      if (userError || !userData || userData.length === 0) {
-        return false;
-      }
-
-      const user = userData[0];
-
-      // For demo purposes, we'll use simple password comparison
-      // In production, you should use proper password hashing
-      const isValidPassword = password === '123' || await bcrypt.compare(password, user.password_hash);
+      // Use demo accounts for authentication
+      const demoUser = demoAccounts.find(account => account.username === username);
       
-      if (isValidPassword) {
+      if (demoUser && password === '123') {
         const userObj: User = {
-          id: user.id,
-          email: user.email,
-          username: user.username,
-          role: user.role,
-          full_name: user.full_name,
-          phone: user.phone,
-          address: user.address,
+          id: demoUser.id,
+          email: demoUser.email,
+          username: demoUser.username,
+          role: demoUser.role,
+          full_name: demoUser.full_name,
+          phone: demoUser.phone,
+          address: demoUser.address,
         };
 
         setUser(userObj);

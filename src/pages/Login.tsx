@@ -485,10 +485,32 @@ const Login: React.FC = () => {
           >
             <>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Tài khoản demo
+              Tài khoản có sẵn trong database
             </h3>
             <div className="space-y-3">
-              {demoAccounts.map((account, index) => (
+              {[
+                {
+                  role: 'Manager',
+                  username: 'manager',
+                  password: '123',
+                  description: 'Truy cập đầy đủ hệ thống quản lý',
+                  color: 'bg-purple-100 text-purple-800'
+                },
+                {
+                  role: 'Pharmacist',
+                  username: 'pharmacist',
+                  password: '123',
+                  description: 'Kiểm tra và phê duyệt đơn thuốc',
+                  color: 'bg-green-100 text-green-800'
+                },
+                {
+                  role: 'Customer',
+                  username: 'customer1',
+                  password: '123',
+                  description: 'Đặt hàng và quản lý đơn thuốc',
+                  color: 'bg-blue-100 text-blue-800'
+                }
+              ].map((account, index) => (
                 <div
                   key={index}
                   className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"

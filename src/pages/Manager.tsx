@@ -54,16 +54,32 @@ const Manager: React.FC = () => {
 
   const fetchAnalytics = async () => {
     try {
-      const { data, error } = await supabase
-        .from('sales_analytics')
-        .select('*')
-        .order('date', { ascending: false })
-        .limit(30);
+      // Use direct Supabase query for analytics since it's manager-specific
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseKey) {
+        console.error('Supabase not configured');
+        return;
+      }
 
-      if (error) throw error;
+      const response = await fetch(`${supabaseUrl}/rest/v1/sales_analytics?select=*&order=date.desc&limit=30`, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
       setAnalytics(data || []);
     } catch (error) {
       console.error('Error fetching analytics:', error);
+      setAnalytics([]);
     } finally {
       setLoading(false);
     }

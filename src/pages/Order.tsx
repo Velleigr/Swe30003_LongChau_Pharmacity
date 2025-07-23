@@ -73,25 +73,27 @@ const Order: React.FC = () => {
   ];
 
   useEffect(() => {
-    fetchProducts();
+    const loadProducts = async () => {
+      try {
+        const response = await api.products.getAll({ sortBy: 'name' });
+
+        if (response.error) {
+          console.error('Error fetching products:', response.error);
+          setProducts([]);
+        } else {
+          setProducts(response.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching products:', error);
+        setProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProducts();
   }, []);
 
-  const fetchProducts = async () => {
-    try {
-      const response = await api.products.getAll({ sortBy: 'name' });
-
-      if (response.error) {
-        throw new Error(response.error);
-      }
-      
-      setProducts(response.data || []);
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      setProducts([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filteredProducts = products
     .filter(product => {

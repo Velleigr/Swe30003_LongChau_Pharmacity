@@ -16,16 +16,6 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     try {
-      // Check if Supabase is properly configured
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
-      if (!supabaseUrl || !supabaseKey || 
-          supabaseUrl === 'https://your-project.supabase.co' || 
-          supabaseKey === 'your-anon-key') {
-        throw new Error('Supabase not configured. Please check your .env file and follow the setup instructions in README.md');
-      }
-
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
         headers: {
@@ -41,8 +31,8 @@ class ApiClient {
       } catch (parseError) {
         // If we can't parse JSON, it's likely we got HTML instead
         const text = await response.text();
-        if (text.includes('<!doctype') || text.includes('<html')) {
-          throw new Error('Received HTML instead of JSON. Please check your Supabase configuration and ensure Edge Functions are deployed.');
+        if (text.includes('<!doctype') || text.includes('<html>')) {
+          throw new Error('Edge Functions not deployed. Please deploy the Supabase Edge Functions.');
         }
         throw new Error('Invalid response format');
       }

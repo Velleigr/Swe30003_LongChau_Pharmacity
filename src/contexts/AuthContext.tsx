@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { api } from '../lib/api';
+import { supabase } from '../lib/supabase';
+import bcrypt from 'bcryptjs';
 
 interface User {
   id: string;
@@ -64,15 +65,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       
-      // Use API login
-      const response = await api.users.login({ username, password });
+      // Get user from database
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', username)
+        .single();
       
-      if (response.error) {
+      if (error || !user) {
         return false;
       }
       
-      // API login successful
-      const userObj: User = response.data;
+      // Verify password using bcrypt
+      const isValidPassword = await bcrypt.compare(password, user.password_hash);
+      
+      if (!isValidPassword) {
+        return false;
+      }
+      
+      // Remove password hash from user object
+      const { password_hash, ...userWithoutPassword } = user;
+      const userObj: User = userWithoutPassword;
+      
       setUser(userObj);
       localStorage.setItem('pharmacy_user', JSON.stringify(userObj));
       return true;
@@ -88,15 +102,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       
-      // Use API signup
-      const response = await api.users.signUp(data);
+      // Hash password using bcrypt
+      const hashedPassword = await bcrypt.hash(data.password, 10);
       
-      if (response.error) {
+      // Create user in database
+      const { data: newUser, error } = await supabase
+        .from('users')
+        .insert([{
+          email: data.email,
+          username: data.username,
+          password_hash: hashedPassword,
+          role: 'customer',
+          full_name: data.fullName,
+          phone: data.phone || null,
+          address: data.address || null
+        }])
+        .select()
+        .single();
+      
+      if (error || !newUser) {
         return false;
       }
       
-      // API signup successful
-      const userObj: User = response.data;
+      // Remove password hash from user object
+      const { password_hash, ...userWithoutPassword } = newUser;
+      const userObj: User = userWithoutPassword;
+      
       setUser(userObj);
       localStorage.setItem('pharmacy_user', JSON.stringify(userObj));
       return true;

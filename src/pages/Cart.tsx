@@ -270,10 +270,15 @@ const Cart: React.FC = () => {
                         value={checkoutForm.fullName}
                         onChange={handleInputChange}
                         required
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                         validationErrors.fullName ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                       }`}
                         placeholder="Nhập họ và tên"
                       />
                     </div>
+                   {validationErrors.fullName && (
+                     <p className="mt-1 text-sm text-red-600">{validationErrors.fullName}</p>
+                   )}
                   </div>
                   
                   <div>
@@ -288,10 +293,15 @@ const Cart: React.FC = () => {
                         value={checkoutForm.phone}
                         onChange={handleInputChange}
                         required
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Nhập số điện thoại"
+                       className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                         validationErrors.phone ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                       }`}
+                       placeholder="Nhập số điện thoại (VD: 0901234567)"
                       />
                     </div>
+                   {validationErrors.phone && (
+                     <p className="mt-1 text-sm text-red-600">{validationErrors.phone}</p>
+                   )}
                   </div>
                   
                   <div>
@@ -306,10 +316,15 @@ const Cart: React.FC = () => {
                         onChange={handleInputChange}
                         required
                         rows={3}
-                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 ${
+                         validationErrors.address ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                       }`}
                         placeholder="Nhập địa chỉ giao hàng"
                       />
                     </div>
+                   {validationErrors.address && (
+                     <p className="mt-1 text-sm text-red-600">{validationErrors.address}</p>
+                   )}
                   </div>
                   
                   <div>

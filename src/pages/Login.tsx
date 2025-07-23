@@ -35,6 +35,34 @@ interface SignUpForm {
   address: string;
 }
 
+// Validation functions
+const validateEmail = (email: string): string | null => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email) return 'Email không được để trống';
+  if (!emailRegex.test(email)) return 'Email không đúng định dạng';
+  return null;
+};
+
+const validatePhone = (phone: string): string | null => {
+  const phoneRegex = /^(\+84|84|0)[3|5|7|8|9][0-9]{8}$/;
+  if (!phone) return null; // Phone is optional
+  if (!phoneRegex.test(phone)) return 'Số điện thoại không đúng định dạng (VD: 0901234567)';
+  return null;
+};
+
+const validateUsername = (username: string): string | null => {
+  if (!username) return 'Tên đăng nhập không được để trống';
+  if (username.length < 3) return 'Tên đăng nhập phải có ít nhất 3 ký tự';
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) return 'Tên đăng nhập chỉ được chứa chữ, số và dấu gạch dưới';
+  return null;
+};
+
+const validatePassword = (password: string): string | null => {
+  if (!password) return 'Mật khẩu không được để trống';
+  if (password.length < 6) return 'Mật khẩu phải có ít nhất 6 ký tự';
+  return null;
+};
+
 const Login: React.FC = () => {
   const [isSignUp, setIsSignUp] = useState(false);
   const [form, setForm] = useState<LoginForm>({
@@ -54,6 +82,14 @@ const Login: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [validationErrors, setValidationErrors] = useState<{
+    email?: string;
+    username?: string;
+    password?: string;
+    confirmPassword?: string;
+    phone?: string;
+    fullName?: string;
+  }>({});
   
   const { login, signUp } = useAuth();
   const navigate = useNavigate();
@@ -71,6 +107,11 @@ const Login: React.FC = () => {
     const { name, value } = e.target;
     setSignUpForm(prev => ({ ...prev, [name]: value }));
     if (error) setError('');
+    
+    // Clear validation error for this field
+    if (validationErrors[name as keyof typeof validationErrors]) {
+      setValidationErrors(prev => ({ ...prev, [name]: undefined }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,22 +137,33 @@ const Login: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    setValidationErrors({});
 
-    // Validation
+    // Comprehensive validation
+    const errors: typeof validationErrors = {};
+    
+    errors.email = validateEmail(signUpForm.email);
+    errors.username = validateUsername(signUpForm.username);
+    errors.password = validatePassword(signUpForm.password);
+    errors.phone = validatePhone(signUpForm.phone);
+    
+    if (!signUpForm.fullName.trim()) {
+      errors.fullName = 'Họ và tên không được để trống';
+    }
+    
     if (signUpForm.password !== signUpForm.confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp');
-      setLoading(false);
-      return;
+      errors.confirmPassword = 'Mật khẩu xác nhận không khớp';
     }
-
-    if (signUpForm.password.length < 6) {
-      setError('Mật khẩu phải có ít nhất 6 ký tự');
-      setLoading(false);
-      return;
-    }
-
-    if (!signUpForm.email.includes('@')) {
-      setError('Email không hợp lệ');
+    
+    // Remove null/undefined errors
+    Object.keys(errors).forEach(key => {
+      if (!errors[key as keyof typeof errors]) {
+        delete errors[key as keyof typeof errors];
+      }
+    });
+    
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
       setLoading(false);
       return;
     }
@@ -307,10 +359,15 @@ const Login: React.FC = () => {
                     value={signUpForm.email}
                     onChange={handleSignUpInputChange}
                     required
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${
+                      validationErrors.email ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                    }`}
                     placeholder="Nhập email"
                   />
                 </div>
+                {validationErrors.email && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
+                )}
               </div>
 
               {/* Username Field */}
@@ -326,10 +383,15 @@ const Login: React.FC = () => {
                     value={signUpForm.username}
                     onChange={handleSignUpInputChange}
                     required
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${
+                      validationErrors.username ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                    }`}
                     placeholder="Nhập tên đăng nhập"
                   />
                 </div>
+                {validationErrors.username && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.username}</p>
+                )}
               </div>
 
               {/* Full Name Field */}
@@ -345,10 +407,15 @@ const Login: React.FC = () => {
                     value={signUpForm.fullName}
                     onChange={handleSignUpInputChange}
                     required
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${
+                      validationErrors.fullName ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                    }`}
                     placeholder="Nhập họ và tên"
                   />
                 </div>
+                {validationErrors.fullName && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.fullName}</p>
+                )}
               </div>
 
               {/* Phone Field */}
@@ -363,10 +430,15 @@ const Login: React.FC = () => {
                     name="phone"
                     value={signUpForm.phone}
                     onChange={handleSignUpInputChange}
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                    placeholder="Nhập số điện thoại"
+                    className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${
+                      validationErrors.phone ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                    }`}
+                    placeholder="Nhập số điện thoại (VD: 0901234567)"
                   />
                 </div>
+                {validationErrors.phone && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.phone}</p>
+                )}
               </div>
 
               {/* Address Field */}
@@ -400,7 +472,9 @@ const Login: React.FC = () => {
                     value={signUpForm.password}
                     onChange={handleSignUpInputChange}
                     required
-                    className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${
+                      validationErrors.password ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                    }`}
                     placeholder="Nhập mật khẩu (ít nhất 6 ký tự)"
                   />
                   <button
@@ -411,6 +485,9 @@ const Login: React.FC = () => {
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
+                {validationErrors.password && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.password}</p>
+                )}
               </div>
 
               {/* Confirm Password Field */}
@@ -426,7 +503,9 @@ const Login: React.FC = () => {
                     value={signUpForm.confirmPassword}
                     onChange={handleSignUpInputChange}
                     required
-                    className="w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    className={`w-full pl-10 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition-colors ${
+                      validationErrors.confirmPassword ? 'border-red-300 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                    }`}
                     placeholder="Nhập lại mật khẩu"
                   />
                   <button
@@ -437,6 +516,9 @@ const Login: React.FC = () => {
                     {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
+                {validationErrors.confirmPassword && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.confirmPassword}</p>
+                )}
               </div>
 
               {/* Submit Button */}
@@ -483,34 +565,11 @@ const Login: React.FC = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="bg-white rounded-xl shadow-lg p-6"
           >
-            <>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Tài khoản có sẵn trong database
+              Tài khoản demo
             </h3>
             <div className="space-y-3">
-              {[
-                {
-                  role: 'Manager',
-                  username: 'manager',
-                  password: '123',
-                  description: 'Truy cập đầy đủ hệ thống quản lý',
-                  color: 'bg-purple-100 text-purple-800'
-                },
-                {
-                  role: 'Pharmacist',
-                  username: 'pharmacist',
-                  password: '123',
-                  description: 'Kiểm tra và phê duyệt đơn thuốc',
-                  color: 'bg-green-100 text-green-800'
-                },
-                {
-                  role: 'Customer',
-                  username: 'customer1',
-                  password: '123',
-                  description: 'Đặt hàng và quản lý đơn thuốc',
-                  color: 'bg-blue-100 text-blue-800'
-                }
-              ].map((account, index) => (
+              {demoAccounts.map((account, index) => (
                 <div
                   key={index}
                   className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
@@ -537,7 +596,6 @@ const Login: React.FC = () => {
                 </div>
               ))}
             </div>
-            </>
           </motion.div>
         )}
 

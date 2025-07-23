@@ -80,20 +80,30 @@ const Header: React.FC = () => {
             <div className="flex items-center space-x-2">
               {user ? (
                 <div className="flex items-center space-x-2">
-                  {user.role === 'manager' && (
+                  {(user.role === 'manager' || user.role === 'pharmacist') && (
                     <Link
                       to="/manager"
-                      className="flex items-center space-x-1 px-3 py-2 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                      className={`flex items-center space-x-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        user.role === 'manager' 
+                          ? 'text-purple-600 hover:bg-purple-50' 
+                          : 'text-green-600 hover:bg-green-50'
+                      }`}
                     >
                       <BarChart3 className="w-4 h-4" />
-                      <span>Quản lý</span>
+                      <span>{user.role === 'manager' ? 'Quản lý' : 'Dược sĩ'}</span>
                     </Link>
                   )}
                   <div className="flex items-center space-x-2 text-sm">
                     <User className="w-4 h-4 text-gray-500" />
                     <span className="text-gray-700">{user.full_name || user.username}</span>
-                    <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                      {user.role}
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      user.role === 'manager' 
+                        ? 'bg-purple-100 text-purple-800'
+                        : user.role === 'pharmacist'
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {user.role === 'manager' ? 'Quản lý' : user.role === 'pharmacist' ? 'Dược sĩ' : 'Khách hàng'}
                     </span>
                   </div>
                   <button

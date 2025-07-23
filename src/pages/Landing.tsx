@@ -155,13 +155,82 @@ const Landing: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
-      const response = await api.products.getAll({ sortBy: 'name' });
-
-      if (response.error) {
-        throw new Error(response.error);
-      }
+      // Check if Supabase is configured before making API calls
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       
-      setProducts(response.data || []);
+      if (!supabaseUrl || !supabaseKey || 
+          supabaseUrl === 'https://your-project.supabase.co' || 
+          supabaseKey === 'your-anon-key') {
+        console.warn('Supabase not configured, using mock data');
+        // Use mock data when Supabase is not configured
+        setProducts([
+          {
+            id: '1',
+            name: 'Paracetamol 500mg',
+            price: 25000,
+            category: 'Heart',
+            image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
+            description: 'Thuốc giảm đau, hạ sốt hiệu quả'
+          },
+          {
+            id: '2',
+            name: 'Vitamin C 1000mg',
+            price: 150000,
+            category: 'Skin',
+            image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
+            description: 'Bổ sung vitamin C tăng cường sức đề kháng'
+          },
+          {
+            id: '3',
+            name: 'Aspirin 100mg',
+            price: 35000,
+            category: 'Heart',
+            image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
+            description: 'Thuốc chống đông máu, bảo vệ tim mạch'
+          }
+        ]);
+        return;
+      }
+
+      try {
+        const response = await api.products.getAll({ sortBy: 'name' });
+
+        if (response.error) {
+          throw new Error(response.error);
+        }
+        
+        setProducts(response.data || []);
+      } catch (apiError) {
+        console.warn('API call failed, using mock data:', apiError);
+        // Fallback to mock data if API fails
+        setProducts([
+          {
+            id: '1',
+            name: 'Paracetamol 500mg',
+            price: 25000,
+            category: 'Heart',
+            image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
+            description: 'Thuốc giảm đau, hạ sốt hiệu quả'
+          },
+          {
+            id: '2',
+            name: 'Vitamin C 1000mg',
+            price: 150000,
+            category: 'Skin',
+            image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
+            description: 'Bổ sung vitamin C tăng cường sức đề kháng'
+          },
+          {
+            id: '3',
+            name: 'Aspirin 100mg',
+            price: 35000,
+            category: 'Heart',
+            image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
+            description: 'Thuốc chống đông máu, bảo vệ tim mạch'
+          }
+        ]);
+      }
     } catch (error) {
       console.error('Error fetching products:', error);
       setProducts([]);

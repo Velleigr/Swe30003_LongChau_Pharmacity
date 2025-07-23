@@ -205,6 +205,46 @@ class ApiClient {
       });
     },
   };
+
+  // User API methods
+  users = {
+    login: (credentials: { username: string; password: string }) => {
+      return this.request('/users/login', {
+        method: 'POST',
+        body: JSON.stringify(credentials),
+      });
+    },
+
+    signUp: (userData: {
+      email: string;
+      username: string;
+      password: string;
+      full_name: string;
+      phone?: string;
+      address?: string;
+    }) => {
+      return this.request('/users/signup', {
+        method: 'POST',
+        body: JSON.stringify(userData),
+      });
+    },
+
+    getById: (id: string) => {
+      return this.request(`/users/${id}`);
+    },
+
+    update: (id: string, userData: {
+      email?: string;
+      full_name?: string;
+      phone?: string;
+      address?: string;
+    }) => {
+      return this.request(`/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(userData),
+      });
+    },
+  };
 }
 
 export const api = new ApiClient();

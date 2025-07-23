@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
-import bcrypt from 'bcryptjs';
+import { api } from '../lib/api';
 
 interface User {
   id: string;
@@ -115,28 +114,65 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return true;
       }
 
-      // Check for user accounts created via signup
-      const existingUsers = JSON.parse(localStorage.getItem('demo_users') || '[]');
-      const signedUpUser = existingUsers.find((user: any) => 
-        user.username === username && user.password === password
-      );
-      
-      if (signedUpUser) {
-        const userObj: User = {
-          id: signedUpUser.id,
-          email: signedUpUser.email,
-          username: signedUpUser.username,
-          role: signedUpUser.role,
-          full_name: signedUpUser.full_name,
-          phone: signedUpUser.phone,
-          address: signedUpUser.address,
-        };
+      // Try API login
+      try {
+        const response = await api.users.login({ username, password });
+        
+        if (response.error) {
+          // If API fails, check local demo users
+          const existingUsers = JSON.parse(localStorage.getItem('demo_users') || '[]');
+          const signedUpUser = existingUsers.find((user: any) => 
+            user.username === username && user.password === password
+          );
+          
+          if (signedUpUser) {
+            const userObj: User = {
+              id: signedUpUser.id,
+              email: signedUpUser.email,
+              username: signedUpUser.username,
+              role: signedUpUser.role,
+              full_name: signedUpUser.full_name,
+              phone: signedUpUser.phone,
+              address: signedUpUser.address,
+            };
 
+            setUser(userObj);
+            localStorage.setItem('pharmacy_user', JSON.stringify(userObj));
+            return true;
+          }
+          return false;
+        }
+        
+        // API login successful
+        const userObj: User = response.data;
         setUser(userObj);
         localStorage.setItem('pharmacy_user', JSON.stringify(userObj));
         return true;
-      }
+      } catch (apiError) {
+        console.warn('API login failed, checking local users:', apiError);
+        
+        // Fallback to local demo users
+        const existingUsers = JSON.parse(localStorage.getItem('demo_users') || '[]');
+        const signedUpUser = existingUsers.find((user: any) => 
+          user.username === username && user.password === password
+        );
+        
+        if (signedUpUser) {
+          const userObj: User = {
+            id: signedUpUser.id,
+            email: signedUpUser.email,
+            username: signedUpUser.username,
+            role: signedUpUser.role,
+            full_name: signedUpUser.full_name,
+            phone: signedUpUser.phone,
+            address: signedUpUser.address,
+          };
 
+          setUser(userObj);
+          localStorage.setItem('pharmacy_user', JSON.stringify(userObj));
+          return true;
+        }
+      }
       return false;
     } catch (error) {
       console.error('Login error:', error);
@@ -150,105 +186,30 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       
-      // For demo purposes, create a new user account locally
-      // In a real application, this would be handled by Supabase Auth
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
-      if (!supabaseUrl || !supabaseKey || 
-          supabaseUrl === 'https://your-project.supabase.co' || 
-          supabaseKey === 'your-anon-key') {
-        // Create demo user account locally
-        const newUserId = `demo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        
-        const userObj: User = {
-          id: newUserId,
+      // Try API signup first
+      try {
+        const response = await api.users.signUp({
           email: data.email,
           username: data.username,
-          role: 'customer',
+          password: data.password,
           full_name: data.fullName,
-          phone: data.phone || null,
-          address: data.address || null,
-        };
-
-        // Store the new user in localStorage for demo purposes
-        const existingUsers = JSON.parse(localStorage.getItem('demo_users') || '[]');
-        
-        // Check if username or email already exists
-        const userExists = existingUsers.some((user: any) => 
-          user.username === data.username || user.email === data.email
-        );
-        
-        if (userExists) {
-          throw new Error('Tên đăng nhập hoặc email đã được sử dụng');
-        }
-        
-        existingUsers.push({
-          ...userObj,
-          password: data.password // In real app, this would be hashed
+          phone: data.phone || undefined,
+          address: data.address || undefined,
         });
-        localStorage.setItem('demo_users', JSON.stringify(existingUsers));
-
-        // Auto-login the new user
-        setUser(userObj);
-        localStorage.setItem('pharmacy_user', JSON.stringify(userObj));
-        return true;
-      }
-
-      // If Supabase is configured, try to use it
-      try {
-        // Hash the password
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(data.password, saltRounds);
         
-        // Insert into database
-        const { data: newUser, error } = await supabase
-          .from('users')
-          .insert([
-            {
-              email: data.email,
-              username: data.username,
-              password_hash: hashedPassword,
-              role: 'customer',
-              full_name: data.fullName,
-              phone: data.phone || null,
-              address: data.address || null,
-            }
-          ])
-          .select()
-          .single();
-
-        if (error) {
-          console.error('Database signup error:', error);
-          // Check for specific constraint violations
-          if (error.code === '23505') {
-            if (error.message.includes('email')) {
-              throw new Error('Email đã được sử dụng');
-            } else if (error.message.includes('username')) {
-              throw new Error('Tên đăng nhập đã được sử dụng');
-            }
-          }
-          throw new Error('Không thể tạo tài khoản. Vui lòng thử lại.');
+        if (response.error) {
+          throw new Error(response.error);
         }
-
-        // Auto-login the new user
-        const userObj: User = {
-          id: newUser.id,
-          email: newUser.email,
-          username: newUser.username,
-          role: newUser.role,
-          full_name: newUser.full_name,
-          phone: newUser.phone,
-          address: newUser.address,
-        };
-
+        
+        // API signup successful
+        const userObj: User = response.data;
         setUser(userObj);
         localStorage.setItem('pharmacy_user', JSON.stringify(userObj));
         return true;
-      } catch (supabaseError) {
-        console.warn('Supabase signup failed, falling back to demo mode:', supabaseError);
+      } catch (apiError) {
+        console.warn('API signup failed, using demo mode:', apiError);
         
-        // Fallback to demo mode
+        // Fallback to demo mode - create user account locally
         const newUserId = `demo-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         
         const userObj: User = {

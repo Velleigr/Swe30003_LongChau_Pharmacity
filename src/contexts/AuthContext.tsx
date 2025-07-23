@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '../lib/supabase';
+import bcrypt from 'bcryptjs';
 
 interface User {
   id: string;
@@ -10,10 +12,20 @@ interface User {
   address: string | null;
 }
 
+interface SignUpData {
+  email: string;
+  username: string;
+  password: string;
+  fullName: string;
+  phone: string;
+  address: string;
+}
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<boolean>;
+  signUp: (data: SignUpData) => Promise<boolean>;
   logout: () => void;
 }
 
@@ -112,6 +124,53 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const signUp = async (data: SignUpData): Promise<boolean> => {
+    try {
+      setLoading(true);
+      
+      // Hash the password
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(data.password, saltRounds);
+      
+      // Try to insert into database first
+      try {
+        const { data: newUser, error } = await supabase
+          .from('users')
+          .insert([
+            {
+              email: data.email,
+              username: data.username,
+              password_hash: hashedPassword,
+              role: 'customer',
+              full_name: data.fullName,
+              phone: data.phone || null,
+              address: data.address || null,
+            }
+          ])
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Database signup error:', error);
+          return false;
+        }
+
+        // Auto-login the new user
+        setUser(newUser);
+        localStorage.setItem('pharmacy_user', JSON.stringify(newUser));
+        return true;
+      } catch (dbError) {
+        console.error('Database connection error during signup:', dbError);
+        return false;
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = (): void => {
     setUser(null);
     localStorage.removeItem('pharmacy_user');
@@ -121,6 +180,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     loading,
     login,
+    signUp,
     logout,
   };
 

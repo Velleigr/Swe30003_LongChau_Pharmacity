@@ -48,56 +48,6 @@ const Landing: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [currentReview, setCurrentReview] = useState(0);
 
-  const mockProducts: Product[] = [
-    {
-      id: '550e8400-e29b-41d4-a716-446655440001',
-      name: 'Paracetamol 500mg',
-      price: 25000,
-      category: 'Heart',
-      image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
-      description: 'Thuốc giảm đau, hạ sốt hiệu quả'
-    },
-    {
-      id: '550e8400-e29b-41d4-a716-446655440002',
-      name: 'Vitamin C 1000mg',
-      price: 150000,
-      category: 'Skin',
-      image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
-      description: 'Bổ sung vitamin C tăng cường sức đề kháng'
-    },
-    {
-      id: '550e8400-e29b-41d4-a716-446655440003',
-      name: 'Aspirin 100mg',
-      price: 45000,
-      category: 'Heart',
-      image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
-      description: 'Thuốc chống đông máu, bảo vệ tim mạch'
-    },
-    {
-      id: '550e8400-e29b-41d4-a716-446655440004',
-      name: 'Omega-3',
-      price: 320000,
-      category: 'Heart',
-      image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
-      description: 'Bổ sung acid béo omega-3 cho tim mạch'
-    },
-    {
-      id: '550e8400-e29b-41d4-a716-446655440005',
-      name: 'Kem dưỡng da',
-      price: 180000,
-      category: 'Skin',
-      image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
-      description: 'Kem dưỡng da chống lão hóa'
-    },
-    {
-      id: '550e8400-e29b-41d4-a716-446655440006',
-      name: 'Serum Vitamin E',
-      price: 250000,
-      category: 'Skin',
-      image_url: 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg',
-      description: 'Serum dưỡng da với vitamin E tự nhiên'
-    }
-  ];
 
   const mockReviews: Review[] = [
     {
@@ -200,10 +150,25 @@ const Landing: React.FC = () => {
   ];
 
   useEffect(() => {
-    // Use mock data instead of fetching from database
-    setProducts(mockProducts);
-    setLoading(false);
+    fetchProducts();
   }, []);
+
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, description, price, category, image_url')
+        .order('name');
+
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredProducts = selectedCategory === 'all' 
     ? products 

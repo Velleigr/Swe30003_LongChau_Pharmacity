@@ -87,6 +87,7 @@ const Order: React.FC = () => {
       setProducts(data || []);
     } catch (error) {
       console.error('Error fetching products:', error);
+      setProducts([]);
     } finally {
       setLoading(false);
     }

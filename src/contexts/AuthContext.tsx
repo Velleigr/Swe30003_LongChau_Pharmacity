@@ -78,28 +78,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       return true;
     } catch (error) {
       console.error('Login error:', error);
-      // Use API signup
-      const response = await api.users.signUp({
-        email: data.email,
-        username: data.username,
-        password: data.password,
-        full_name: data.fullName,
-        phone: data.phone || undefined,
-        address: data.address || undefined,
-      });
-      
-      if (response.error) {
-        throw new Error(response.error);
-      }
-      
-      // API signup successful
-      const userObj: User = response.data;
-      setUser(userObj);
-      localStorage.setItem('pharmacy_user', JSON.stringify(userObj));
-      return true;
-    } catch (error) {
-      console.error('Signup error:', error);
-      throw error;
+      return false;
     } finally {
       setLoading(false);
     }

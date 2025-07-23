@@ -200,28 +200,10 @@ const Landing: React.FC = () => {
   ];
 
   useEffect(() => {
-    fetchData();
+    // Use mock data instead of fetching from database
+    setProducts(mockProducts);
+    setLoading(false);
   }, []);
-
-  const fetchData = async () => {
-    try {
-      // Fetch products
-      const { data: productsData, error: productsError } = await supabase
-        .from('products')
-        .select('*')
-        .order('name');
-
-      if (productsError) throw productsError;
-      setProducts(productsData || []);
-
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      // Fallback to mock data if database fails
-      setProducts(mockProducts);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filteredProducts = selectedCategory === 'all' 
     ? products 

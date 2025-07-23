@@ -70,7 +70,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .from('users')
         .select('*')
         .eq('username', username)
-        .single();
+        .maybeSingle();
       
       if (error || !user) {
         return false;

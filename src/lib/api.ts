@@ -11,59 +11,84 @@ interface ApiResponse<T = any> {
 class ApiClient {
   // Product API methods
   products = {
-    getAll: (params?: {
+    getAll: async (params?: {
       category?: string;
       search?: string;
+      sortBy?: string;
       limit?: number;
       offset?: number;
-    }) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        try {
-          let query = supabase.from('products').select('*', { count: 'exact' });
-          
-          if (params?.category) {
-            query = query.eq('category', params.category);
-          }
-          
-          if (params?.search) {
-            query = query.or(`name.ilike.%${params.search}%,description.ilike.%${params.search}%`);
-          }
-          
-          if (params?.limit) {
-            query = query.limit(params.limit);
-          }
-          
-          if (params?.offset) {
-            query = query.range(params.offset, params.offset + (params.limit || 10) - 1);
-          }
-          
-          const { data, error } = await query;
-          
-          resolve({ data: data || [], count: data?.length || 0, error: error?.message });
-        } catch (error) {
-          resolve({ error: 'Failed to fetch products' });
+    }): Promise<ApiResponse> => {
+      try {
+        console.log('Fetching products with params:', params);
+        
+        let query = supabase.from('products').select('*', { count: 'exact' });
+        
+        if (params?.category && params.category !== 'all') {
+          query = query.eq('category', params.category);
         }
-      });
+        
+        if (params?.search) {
+          query = query.or(`name.ilike.%${params.search}%,description.ilike.%${params.search}%`);
+        }
+        
+        // Add sorting
+        const sortBy = params?.sortBy || 'name';
+        query = query.order(sortBy, { ascending: true });
+        
+        if (params?.limit) {
+          query = query.limit(params.limit);
+        }
+        
+        if (params?.offset) {
+          query = query.range(params.offset, params.offset + (params.limit || 10) - 1);
+        }
+        
+        const { data, error, count } = await query;
+        
+        console.log('Products query result:', { data, error, count });
+        
+        if (error) {
+          console.error('Products query error:', error);
+          return { error: error.message, data: [] };
+        }
+        
+        return { 
+          data: data || [], 
+          count: count || data?.length || 0,
+          error: undefined 
+        };
+      } catch (error) {
+        console.error('Products fetch error:', error);
+        return { error: 'Failed to fetch products', data: [] };
+      }
     },
 
-    getById: (id: string) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        try {
-          const { data, error } = await supabase
-            .from('products')
-            .select('*')
-            .eq('id', id)
-            .single();
-          
-          if (error) {
-            resolve({ error: error.code === 'PGRST116' ? 'Product not found' : error.message });
-          } else {
-            resolve({ data });
-          }
-        } catch (error) {
-          resolve({ error: 'Failed to fetch product' });
+    getById: async (id: string): Promise<ApiResponse> => {
+      try {
+        console.log('Fetching product by ID:', id);
+        
+        const { data, error } = await supabase
+          .from('products')
+          .select('*')
+          .eq('id', id)
+          .maybeSingle();
+        
+        console.log('Product by ID result:', { data, error });
+        
+        if (error) {
+          console.error('Product by ID error:', error);
+          return { error: error.message };
         }
-      });
+        
+        if (!data) {
+          return { error: 'Product not found' };
+        }
+        
+        return { data };
+      } catch (error) {
+        console.error('Product fetch by ID error:', error);
+        return { error: 'Failed to fetch product' };
+      }
     },
 
     create: (product: {

@@ -64,25 +64,47 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
       setLoading(true);
+      console.log('Attempting login for username:', username);
       
-      // Hash password with SHA-256 to match database storage
+      // Get user from database first
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('username', username)
+        .maybeSingle();
+      
+      console.log('User query result:', { user, error });
+      
+      if (error) {
+        console.error('Database error:', error);
+        return false;
+      }
+      
+      if (!user) {
+        console.log('User not found');
+        return false;
+      }
+      
+      // Hash the provided password with SHA-256
       const encoder = new TextEncoder();
       const data = encoder.encode(password);
       const hashBuffer = await crypto.subtle.digest('SHA-256', data);
       const hashArray = Array.from(new Uint8Array(hashBuffer));
       const hashedPassword = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
       
-      // Get user from database
-      const { data: user, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('username', username)
-        .eq('password_hash', hashedPassword)
-        .maybeSingle();
+      console.log('Password hash comparison:', {
+        providedHash: hashedPassword,
+        storedHash: user.password_hash,
+        match: hashedPassword === user.password_hash
+      });
       
-      if (error || !user) {
+      // Compare the hashed password with stored hash
+      if (hashedPassword !== user.password_hash) {
+        console.log('Password mismatch');
         return false;
       }
+      
+      console.log('Login successful for user:', user.username);
       
       // Remove password hash from user object
       const { password_hash, ...userWithoutPassword } = user;

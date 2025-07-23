@@ -20,7 +20,6 @@ import {
   FileText,
   TrendingDown,
   Users2,
-  Calendar
 } from 'lucide-react';
 
 interface SalesAnalytics {

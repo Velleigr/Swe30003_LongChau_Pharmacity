@@ -481,6 +481,7 @@ const Login: React.FC = () => {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="bg-white rounded-xl shadow-lg p-6"
           >
+            <>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Tài khoản demo
             </h3>
@@ -512,6 +513,7 @@ const Login: React.FC = () => {
                 </div>
               ))}
             </div>
+            </>
           </div>
         )}
 

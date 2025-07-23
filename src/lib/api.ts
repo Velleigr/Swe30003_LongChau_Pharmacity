@@ -1,6 +1,5 @@
 // API client for interacting with Supabase
 import { supabase } from './supabase';
-
 interface ApiResponse<T = any> {
   data?: T;
   error?: string;
@@ -10,32 +9,7 @@ interface ApiResponse<T = any> {
 }
 
 class ApiClient {
-  // Product API methods
-  products = {
-    getAll: (params?: {
-      category?: string;
-      search?: string;
-      sortBy?: string;
-      sortOrder?: 'asc' | 'desc';
-    }) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        try {
-          let query = supabase.from('products').select('*');
-          
-          // Apply filters
-          if (params?.category && params.category !== 'all') {
-            query = query.eq('category', params.category);
-          }
-          
-          if (params?.search) {
-            query = query.or(`name.ilike.%${params.search}%,description.ilike.%${params.search}%`);
-          }
-          
-          const sortBy = params?.sortBy || 'name';
-          const sortOrder = params?.sortOrder || 'asc';
-          query = query.order(sortBy, { ascending: sortOrder === 'asc' });
-          
-          const { data, error } = await query;
+class ApiClient {
           
           resolve({ data: data || [], count: data?.length || 0, error: error?.message });
         } catch (error) {

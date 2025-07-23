@@ -65,21 +65,22 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       
+      // Hash password with SHA-256 to match database storage
+      const encoder = new TextEncoder();
+      const data = encoder.encode(password);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashedPassword = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      
       // Get user from database
       const { data: user, error } = await supabase
         .from('users')
         .select('*')
         .eq('username', username)
+        .eq('password_hash', hashedPassword)
         .maybeSingle();
       
       if (error || !user) {
-        return false;
-      }
-      
-      // Verify password using bcrypt
-      const isValidPassword = await bcrypt.compare(password, user.password_hash);
-      
-      if (!isValidPassword) {
         return false;
       }
       
@@ -102,8 +103,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       
-      // Hash password using bcrypt
-      const hashedPassword = await bcrypt.hash(data.password, 10);
+      // Hash password with SHA-256
+      const encoder = new TextEncoder();
+      const passwordData = encoder.encode(data.password);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', passwordData);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashedPassword = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
       
       // Create user in database
       const { data: newUser, error } = await supabase

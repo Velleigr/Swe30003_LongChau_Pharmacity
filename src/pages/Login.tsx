@@ -120,11 +120,13 @@ const Login: React.FC = () => {
       const success = await signUp(signUpForm);
       if (success) {
         navigate(from, { replace: true });
-      } else {
-        setError('Tên đăng nhập hoặc email đã tồn tại');
       }
     } catch (err) {
-      setError('Đã xảy ra lỗi khi tạo tài khoản. Vui lòng thử lại.');
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Đã xảy ra lỗi khi tạo tài khoản. Vui lòng thử lại.');
+      }
     } finally {
       setLoading(false);
     }

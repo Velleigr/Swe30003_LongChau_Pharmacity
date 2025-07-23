@@ -128,44 +128,68 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       
+      // Check if we have a valid Supabase connection
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseKey || 
+          supabaseUrl === 'https://your-project.supabase.co' || 
+          supabaseKey === 'your-anon-key') {
+        console.error('Supabase not configured properly');
+        return false;
+      }
+
       // Hash the password
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(data.password, saltRounds);
       
-      // Try to insert into database first
-      try {
-        const { data: newUser, error } = await supabase
-          .from('users')
-          .insert([
-            {
-              email: data.email,
-              username: data.username,
-              password_hash: hashedPassword,
-              role: 'customer',
-              full_name: data.fullName,
-              phone: data.phone || null,
-              address: data.address || null,
-            }
-          ])
-          .select()
-          .single();
+      // Insert into database
+      const { data: newUser, error } = await supabase
+        .from('users')
+        .insert([
+          {
+            email: data.email,
+            username: data.username,
+            password_hash: hashedPassword,
+            role: 'customer',
+            full_name: data.fullName,
+            phone: data.phone || null,
+            address: data.address || null,
+          }
+        ])
+        .select()
+        .single();
 
-        if (error) {
-          console.error('Database signup error:', error);
-          return false;
+      if (error) {
+        console.error('Database signup error:', error);
+        // Check for specific constraint violations
+        if (error.code === '23505') {
+          if (error.message.includes('email')) {
+            throw new Error('Email đã được sử dụng');
+          } else if (error.message.includes('username')) {
+            throw new Error('Tên đăng nhập đã được sử dụng');
+          }
         }
-
-        // Auto-login the new user
-        setUser(newUser);
-        localStorage.setItem('pharmacy_user', JSON.stringify(newUser));
-        return true;
-      } catch (dbError) {
-        console.error('Database connection error during signup:', dbError);
-        return false;
+        throw new Error('Không thể tạo tài khoản. Vui lòng thử lại.');
       }
+
+      // Auto-login the new user
+      const userObj: User = {
+        id: newUser.id,
+        email: newUser.email,
+        username: newUser.username,
+        role: newUser.role,
+        full_name: newUser.full_name,
+        phone: newUser.phone,
+        address: newUser.address,
+      };
+
+      setUser(userObj);
+      localStorage.setItem('pharmacy_user', JSON.stringify(userObj));
+      return true;
     } catch (error) {
       console.error('Signup error:', error);
-      return false;
+      throw error;
     } finally {
       setLoading(false);
     }

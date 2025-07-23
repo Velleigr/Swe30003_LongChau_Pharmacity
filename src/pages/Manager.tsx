@@ -334,7 +334,8 @@ const Manager: React.FC = () => {
             >
               Đăng nhập
             </button>
-              <div className="flex space-x-3">
+          </form>
+          <div className="flex space-x-3 mt-4">
                 <button
                   onClick={generatePDFReport}
                   className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors inline-flex items-center text-sm"
@@ -357,8 +358,6 @@ const Manager: React.FC = () => {
                   Báo cáo xu hướng
                 </button>
               </div>
-            </div>
-          </div>
         </div>
       </div>
     );

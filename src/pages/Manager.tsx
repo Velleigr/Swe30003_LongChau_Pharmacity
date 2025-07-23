@@ -4,6 +4,7 @@ import { Navigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import {
   BarChart3,
@@ -15,7 +16,11 @@ import {
   Calendar,
   DollarSign,
   Lock,
-  AlertCircle
+  AlertCircle,
+  FileText,
+  TrendingDown,
+  Users2,
+  Calendar
 } from 'lucide-react';
 
 interface SalesAnalytics {
@@ -117,40 +122,154 @@ const Manager: React.FC = () => {
   const generatePDFReport = () => {
     const doc = new jsPDF();
     
-    // Title
+    // Header
     doc.setFontSize(20);
-    doc.text('Báo cáo bán hàng - Long Châu', 20, 20);
+    doc.text('BÁO CÁO TỔNG HỢP - LONG CHÂU', 20, 20);
     
-    // Date
+    // Report info
     doc.setFontSize(12);
-    doc.text(`Ngày xuất báo cáo: ${new Date().toLocaleDateString('vi-VN')}`, 20, 35);
+    doc.text(`Người tạo: ${user?.full_name || user?.username}`, 20, 35);
+    doc.text(`Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} ${new Date().toLocaleTimeString('vi-VN')}`, 20, 45);
+    doc.text(`Thời gian báo cáo: ${analytics.length > 0 ? `${analytics[analytics.length - 1].date} - ${analytics[0].date}` : 'N/A'}`, 20, 55);
     
-    // Summary statistics
+    // Executive Summary
     const totalSales = analytics.reduce((sum, item) => sum + item.total_sales, 0);
     const totalOrders = analytics.reduce((sum, item) => sum + item.total_orders, 0);
     const totalCustomers = analytics.reduce((sum, item) => sum + item.total_customers, 0);
+    const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+    const avgDailySales = analytics.length > 0 ? totalSales / analytics.length : 0;
     
     doc.setFontSize(14);
-    doc.text('Tổng quan:', 20, 55);
+    doc.text('1. TỔNG QUAN KINH DOANH', 20, 75);
     doc.setFontSize(12);
-    doc.text(`Tổng doanh thu: ${totalSales.toLocaleString()}đ`, 20, 70);
-    doc.text(`Tổng đơn hàng: ${totalOrders.toLocaleString()}`, 20, 85);
-    doc.text(`Tổng khách hàng: ${totalCustomers.toLocaleString()}`, 20, 100);
+    doc.text(`• Tổng doanh thu: ${totalSales.toLocaleString('vi-VN')}đ`, 25, 90);
+    doc.text(`• Tổng đơn hàng: ${totalOrders.toLocaleString('vi-VN')} đơn`, 25, 100);
+    doc.text(`• Tổng khách hàng: ${totalCustomers.toLocaleString('vi-VN')} khách`, 25, 110);
+    doc.text(`• Giá trị trung bình/đơn: ${avgOrderValue.toLocaleString('vi-VN')}đ`, 25, 120);
+    doc.text(`• Doanh thu trung bình/ngày: ${avgDailySales.toLocaleString('vi-VN')}đ`, 25, 130);
     
-    // Daily breakdown
+    // Category Analysis
+    const heartSales = analytics.filter(item => item.popular_category === 'Heart').reduce((sum, item) => sum + item.total_sales, 0);
+    const skinSales = analytics.filter(item => item.popular_category === 'Skin').reduce((sum, item) => sum + item.total_sales, 0);
+    const heartPercentage = totalSales > 0 ? (heartSales / totalSales * 100).toFixed(1) : '0';
+    const skinPercentage = totalSales > 0 ? (skinSales / totalSales * 100).toFixed(1) : '0';
+    
     doc.setFontSize(14);
-    doc.text('Chi tiết theo ngày:', 20, 125);
+    doc.text('2. PHÂN TÍCH DANH MỤC SẢN PHẨM', 20, 150);
+    doc.setFontSize(12);
+    doc.text(`• Tim mạch: ${heartSales.toLocaleString('vi-VN')}đ (${heartPercentage}%)`, 25, 165);
+    doc.text(`• Da liễu: ${skinSales.toLocaleString('vi-VN')}đ (${skinPercentage}%)`, 25, 175);
     
-    let yPosition = 140;
+    // Trend Analysis
+    const recentSales = analytics.slice(0, 7).reduce((sum, item) => sum + item.total_sales, 0);
+    const olderSales = analytics.slice(7, 14).reduce((sum, item) => sum + item.total_sales, 0);
+    const growthRate = olderSales > 0 ? ((recentSales - olderSales) / olderSales * 100).toFixed(1) : '0';
+    
+    doc.setFontSize(14);
+    doc.text('3. PHÂN TÍCH XU HƯỚNG', 20, 195);
+    doc.setFontSize(12);
+    doc.text(`• Tăng trưởng 7 ngày gần nhất: ${growthRate}%`, 25, 210);
+    doc.text(`• Xu hướng: ${parseFloat(growthRate) > 0 ? 'Tăng trưởng tích cực' : parseFloat(growthRate) < 0 ? 'Giảm so với tuần trước' : 'Ổn định'}`, 25, 220);
+    
+    // New page for detailed data
+    doc.addPage();
+    doc.setFontSize(14);
+    doc.text('4. CHI TIẾT THEO NGÀY', 20, 20);
+    
+    let yPosition = 35;
     doc.setFontSize(10);
+    doc.text('Ngày', 20, yPosition);
+    doc.text('Doanh thu', 70, yPosition);
+    doc.text('Đơn hàng', 120, yPosition);
+    doc.text('Khách hàng', 160, yPosition);
+    yPosition += 10;
     
-    analytics.slice(0, 15).forEach((item, index) => {
+    // Draw line
+    doc.line(20, yPosition - 5, 190, yPosition - 5);
+    
+    analytics.slice(0, 20).forEach((item, index) => {
       const date = new Date(item.date).toLocaleDateString('vi-VN');
-      doc.text(`${date}: ${item.total_sales.toLocaleString()}đ - ${item.total_orders} đơn`, 20, yPosition);
-      yPosition += 15;
+      doc.text(date, 20, yPosition);
+      doc.text(`${item.total_sales.toLocaleString('vi-VN')}đ`, 70, yPosition);
+      doc.text(`${item.total_orders}`, 120, yPosition);
+      doc.text(`${item.total_customers}`, 160, yPosition);
+      yPosition += 12;
+      
+      // Add new page if needed
+      if (yPosition > 270) {
+        doc.addPage();
+        yPosition = 20;
+      }
     });
     
-    doc.save('bao-cao-ban-hang.pdf');
+    // Footer on last page
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.text(`Trang ${i}/${pageCount} - Long Châu Pharmacy Management System`, 20, 285);
+      doc.text(`Báo cáo được tạo tự động vào ${new Date().toLocaleString('vi-VN')}`, 20, 290);
+    }
+    
+    const fileName = `bao-cao-long-chau-${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
+  };
+
+  const generateCustomerReport = () => {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(20);
+    doc.text('BÁO CÁO KHÁCH HÀNG - LONG CHÂU', 20, 20);
+    
+    doc.setFontSize(12);
+    doc.text(`Người tạo: ${user?.full_name || user?.username}`, 20, 35);
+    doc.text(`Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`, 20, 45);
+    
+    const totalCustomers = analytics.reduce((sum, item) => sum + item.total_customers, 0);
+    const avgCustomersPerDay = analytics.length > 0 ? totalCustomers / analytics.length : 0;
+    const totalOrders = analytics.reduce((sum, item) => sum + item.total_orders, 0);
+    const avgOrdersPerCustomer = totalCustomers > 0 ? totalOrders / totalCustomers : 0;
+    
+    doc.setFontSize(14);
+    doc.text('THỐNG KÊ KHÁCH HÀNG', 20, 65);
+    doc.setFontSize(12);
+    doc.text(`• Tổng số khách hàng: ${totalCustomers.toLocaleString('vi-VN')}`, 25, 80);
+    doc.text(`• Khách hàng trung bình/ngày: ${avgCustomersPerDay.toFixed(1)}`, 25, 90);
+    doc.text(`• Đơn hàng trung bình/khách: ${avgOrdersPerCustomer.toFixed(1)}`, 25, 100);
+    
+    doc.save(`bao-cao-khach-hang-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
+  const generateTrendReport = () => {
+    const doc = new jsPDF();
+    
+    doc.setFontSize(20);
+    doc.text('BÁO CÁO XU HƯỚNG - LONG CHÂU', 20, 20);
+    
+    doc.setFontSize(12);
+    doc.text(`Người tạo: ${user?.full_name || user?.username}`, 20, 35);
+    doc.text(`Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`, 20, 45);
+    
+    // Calculate trends
+    const recentWeek = analytics.slice(0, 7);
+    const previousWeek = analytics.slice(7, 14);
+    
+    const recentSales = recentWeek.reduce((sum, item) => sum + item.total_sales, 0);
+    const previousSales = previousWeek.reduce((sum, item) => sum + item.total_sales, 0);
+    const salesGrowth = previousSales > 0 ? ((recentSales - previousSales) / previousSales * 100).toFixed(1) : '0';
+    
+    const recentOrders = recentWeek.reduce((sum, item) => sum + item.total_orders, 0);
+    const previousOrders = previousWeek.reduce((sum, item) => sum + item.total_orders, 0);
+    const ordersGrowth = previousOrders > 0 ? ((recentOrders - previousOrders) / previousOrders * 100).toFixed(1) : '0';
+    
+    doc.setFontSize(14);
+    doc.text('PHÂN TÍCH XU HƯỚNG 7 NGÀY', 20, 65);
+    doc.setFontSize(12);
+    doc.text(`• Tăng trưởng doanh thu: ${salesGrowth}%`, 25, 80);
+    doc.text(`• Tăng trưởng đơn hàng: ${ordersGrowth}%`, 25, 90);
+    doc.text(`• Đánh giá: ${parseFloat(salesGrowth) > 5 ? 'Tăng trưởng mạnh' : parseFloat(salesGrowth) > 0 ? 'Tăng trưởng ổn định' : 'Cần cải thiện'}`, 25, 100);
+    
+    doc.save(`bao-cao-xu-huong-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   // Login screen
@@ -216,13 +335,29 @@ const Manager: React.FC = () => {
             >
               Đăng nhập
             </button>
-          </form>
-
-          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-            <h3 className="font-semibold text-blue-900 mb-2">Thông tin demo:</h3>
-            <div className="text-sm text-blue-800 space-y-1">
-              <p>• Tên đăng nhập: <code className="bg-blue-100 px-1 rounded">manager</code></p>
-              <p>• Mật khẩu: <code className="bg-blue-100 px-1 rounded">123</code></p>
+              <div className="flex space-x-3">
+                <button
+                  onClick={generatePDFReport}
+                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors inline-flex items-center text-sm"
+                >
+                  <FileText className="w-4 h-4 mr-2" />
+                  Báo cáo tổng hợp
+                </button>
+                <button
+                  onClick={generateCustomerReport}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center text-sm"
+                >
+                  <Users2 className="w-4 h-4 mr-2" />
+                  Báo cáo khách hàng
+                </button>
+                <button
+                  onClick={generateTrendReport}
+                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center text-sm"
+                >
+                  <TrendingDown className="w-4 h-4 mr-2" />
+                  Báo cáo xu hướng
+                </button>
+              </div>
             </div>
           </div>
         </div>

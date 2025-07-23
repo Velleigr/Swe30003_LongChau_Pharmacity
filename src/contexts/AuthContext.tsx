@@ -77,34 +77,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem('pharmacy_user', JSON.stringify(userObj));
       return true;
     } catch (error) {
-      console.error('Signup error:', error);
-      throw error;
+      console.error('Login error:', error);
+      return false;
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = (): void => {
-    setUser(null);
-    localStorage.removeItem('pharmacy_user');
-  };
-
-  const value: AuthContextType = {
-    user,
-    loading,
-    login,
-    signUp,
-    logout,
-  };
-
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
+  const signUp = async (data: SignUpData): Promise<boolean> => {
+    try {
+      setLoading(true);
+      
+      // Use API signup
+      const response = await api.users.signUp(data);
+      
+      if (response.error) {
+        return false;
+      }
+      
+      // API signup successful
+      const userObj: User = response.data;
+      setUser(userObj);
+      localStorage.setItem('pharmacy_user', JSON.stringify(userObj));
+      return true;
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('Signup error:', error);
       return false;
     } finally {
       setLoading(false);

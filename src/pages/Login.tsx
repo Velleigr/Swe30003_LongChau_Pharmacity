@@ -184,37 +184,6 @@ const Login: React.FC = () => {
     }
   };
 
-  const demoAccounts = [
-    {
-      role: 'Manager',
-      username: 'manager',
-      password: '123',
-      description: 'Truy cập đầy đủ hệ thống quản lý',
-      icon: <Shield className="w-4 h-4" />,
-      color: 'bg-purple-100 text-purple-800'
-    },
-    {
-      role: 'Pharmacist',
-      username: 'pharmacist',
-      password: '123',
-      description: 'Kiểm tra và phê duyệt đơn thuốc',
-      icon: <CheckCircle className="w-4 h-4" />,
-      color: 'bg-green-100 text-green-800'
-    },
-    {
-      role: 'Customer',
-      username: 'customer1',
-      password: '123',
-      description: 'Đặt hàng và quản lý đơn thuốc',
-      icon: <User className="w-4 h-4" />,
-      color: 'bg-blue-100 text-blue-800'
-    }
-  ];
-
-  const fillDemoAccount = (username: string, password: string) => {
-    setForm({ username, password });
-    setError('');
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -556,48 +525,6 @@ const Login: React.FC = () => {
             </motion.div>
           )}
         </motion.div>
-
-        {/* Demo Accounts - Only show for login */}
-        {!isSignUp && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="bg-white rounded-xl shadow-lg p-6"
-          >
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Tài khoản demo
-            </h3>
-            <div className="space-y-3">
-              {demoAccounts.map((account, index) => (
-                <div
-                  key={index}
-                  className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${account.color}`}>
-                        {account.icon}
-                        <span>{account.role}</span>
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => fillDemoAccount(account.username, account.password)}
-                      className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                    >
-                      Sử dụng
-                    </button>
-                  </div>
-                  <p className="text-gray-600 text-sm mb-2">{account.description}</p>
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <p>• Tên đăng nhập: <code className="bg-gray-100 px-1 rounded">{account.username}</code></p>
-                    <p>• Mật khẩu: <code className="bg-gray-100 px-1 rounded">{account.password}</code></p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
 
         {/* Back to Home */}
         <motion.div

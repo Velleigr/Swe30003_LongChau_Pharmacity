@@ -50,7 +50,7 @@ const Landing: React.FC = () => {
 
   const mockProducts: Product[] = [
     {
-      id: '1',
+      id: '550e8400-e29b-41d4-a716-446655440001',
       name: 'Paracetamol 500mg',
       price: 25000,
       category: 'Heart',
@@ -58,7 +58,7 @@ const Landing: React.FC = () => {
       description: 'Thuốc giảm đau, hạ sốt hiệu quả'
     },
     {
-      id: '2',
+      id: '550e8400-e29b-41d4-a716-446655440002',
       name: 'Vitamin C 1000mg',
       price: 150000,
       category: 'Skin',
@@ -66,7 +66,7 @@ const Landing: React.FC = () => {
       description: 'Bổ sung vitamin C tăng cường sức đề kháng'
     },
     {
-      id: '3',
+      id: '550e8400-e29b-41d4-a716-446655440003',
       name: 'Aspirin 100mg',
       price: 45000,
       category: 'Heart',
@@ -74,7 +74,7 @@ const Landing: React.FC = () => {
       description: 'Thuốc chống đông máu, bảo vệ tim mạch'
     },
     {
-      id: '4',
+      id: '550e8400-e29b-41d4-a716-446655440004',
       name: 'Omega-3',
       price: 320000,
       category: 'Heart',
@@ -82,7 +82,7 @@ const Landing: React.FC = () => {
       description: 'Bổ sung acid béo omega-3 cho tim mạch'
     },
     {
-      id: '5',
+      id: '550e8400-e29b-41d4-a716-446655440005',
       name: 'Kem dưỡng da',
       price: 180000,
       category: 'Skin',
@@ -90,7 +90,7 @@ const Landing: React.FC = () => {
       description: 'Kem dưỡng da chống lão hóa'
     },
     {
-      id: '6',
+      id: '550e8400-e29b-41d4-a716-446655440006',
       name: 'Serum Vitamin E',
       price: 250000,
       category: 'Skin',

@@ -71,13 +71,18 @@ const OrderDetails: React.FC = () => {
       const { data, error } = await supabase
         .from('products')
         .select('*')
-        .eq('id', id)
-        .single();
+        .eq('id', id);
 
       if (error) throw error;
-      setProduct(data);
+      
+      if (data && data.length > 0) {
+        setProduct(data[0]);
+      } else {
+        setProduct(null);
+      }
     } catch (error) {
       console.error('Error fetching product:', error);
+      setProduct(null);
     } finally {
       setLoading(false);
     }

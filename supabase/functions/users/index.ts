@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import * as bcrypt from 'https://esm.sh/bcryptjs@2.4.3'
+import { hash as bcryptHash, compare as bcryptCompare } from 'https://esm.sh/bcryptjs@2.4.3'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -40,11 +40,11 @@ interface SignUpRequest {
 
 // Secure password hashing with bcrypt
 async function hashPassword(password: string): Promise<string> {
-  return await bcrypt.hash(password, 10);
+  return await bcryptHash(password, 10);
 }
 
 async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return await bcrypt.compare(password, hash);
+  return await bcryptCompare(password, hash);
 }
 
 // User Controller Functions

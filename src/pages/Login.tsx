@@ -514,7 +514,7 @@ const Login: React.FC = () => {
               ))}
             </div>
             </>
-          </div>
+          </motion.div>
         )}
 
         {/* Back to Home */}

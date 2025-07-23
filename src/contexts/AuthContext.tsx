@@ -77,6 +77,33 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       localStorage.setItem('pharmacy_user', JSON.stringify(userObj));
       return true;
     } catch (error) {
+      console.error('Signup error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const logout = (): void => {
+    setUser(null);
+    localStorage.removeItem('pharmacy_user');
+  };
+
+  const value: AuthContextType = {
+    user,
+    loading,
+    login,
+    signUp,
+    logout,
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+    } catch (error) {
       console.error('Login error:', error);
       return false;
     } finally {

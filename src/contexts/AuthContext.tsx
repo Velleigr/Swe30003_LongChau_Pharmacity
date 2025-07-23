@@ -64,51 +64,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
       setLoading(true);
-      console.log('Attempting login for username:', username);
+      console.log('Attempting login via Edge Function for username:', username);
       
-      // Get user from database first
-      const { data: user, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('username', username)
-        .maybeSingle();
+      // Use the Edge Function for login
+      const response = await api.users.login({ username, password });
       
-      console.log('User query result:', { user, error });
-      
-      if (error) {
-        console.error('Database error:', error);
+      if (response.error) {
+        console.error('Login error:', response.error);
         return false;
       }
       
-      if (!user) {
-        console.log('User not found');
+      if (!response.data) {
+        console.log('No user data returned');
         return false;
       }
       
-      // Hash the provided password with SHA-256
-      const encoder = new TextEncoder();
-      const data = encoder.encode(password);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashedPassword = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      console.log('Login successful for user:', response.data.username);
       
-      console.log('Password hash comparison:', {
-        providedHash: hashedPassword,
-        storedHash: user.password_hash,
-        match: hashedPassword === user.password_hash
-      });
-      
-      // Compare the hashed password with stored hash
-      if (hashedPassword !== user.password_hash) {
-        console.log('Password mismatch');
-        return false;
-      }
-      
-      console.log('Login successful for user:', user.username);
-      
-      // Remove password hash from user object
-      const { password_hash, ...userWithoutPassword } = user;
-      const userObj: User = userWithoutPassword;
+      const userObj: User = response.data;
       
       setUser(userObj);
       localStorage.setItem('pharmacy_user', JSON.stringify(userObj));
@@ -124,36 +97,31 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signUp = async (data: SignUpData): Promise<boolean> => {
     try {
       setLoading(true);
+      console.log('Attempting signup via Edge Function for username:', data.username);
       
-      // Hash password with SHA-256
-      const encoder = new TextEncoder();
-      const passwordData = encoder.encode(data.password);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', passwordData);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashedPassword = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+      // Use the Edge Function for signup
+      const response = await api.users.signUp({
+        email: data.email,
+        username: data.username,
+        password: data.password,
+        full_name: data.fullName,
+        phone: data.phone,
+        address: data.address
+      });
       
-      // Create user in database
-      const { data: newUser, error } = await supabase
-        .from('users')
-        .insert([{
-          email: data.email,
-          username: data.username,
-          password_hash: hashedPassword,
-          role: 'customer',
-          full_name: data.fullName,
-          phone: data.phone || null,
-          address: data.address || null
-        }])
-        .select()
-        .single();
-      
-      if (error || !newUser) {
+      if (response.error) {
+        console.error('Signup error:', response.error);
         return false;
       }
       
-      // Remove password hash from user object
-      const { password_hash, ...userWithoutPassword } = newUser;
-      const userObj: User = userWithoutPassword;
+      if (!response.data) {
+        console.log('No user data returned from signup');
+        return false;
+      }
+      
+      console.log('Signup successful for user:', response.data.username);
+      
+      const userObj: User = response.data;
       
       setUser(userObj);
       localStorage.setItem('pharmacy_user', JSON.stringify(userObj));

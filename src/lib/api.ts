@@ -1,5 +1,6 @@
-// API client for interacting with Supabase
+// API client for interacting with Supabase Edge Functions
 import { supabase } from './supabase';
+
 interface ApiResponse<T = any> {
   data?: T;
   error?: string;
@@ -9,7 +10,45 @@ interface ApiResponse<T = any> {
 }
 
 class ApiClient {
-  // Product API methods
+  private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error('Supabase configuration missing');
+      }
+
+      const url = `${supabaseUrl}/functions/v1/${endpoint}`;
+      console.log('Making request to:', url);
+      
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json',
+          ...options.headers,
+        },
+      });
+
+      console.log('Response status:', response.status);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Request failed:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
+      const data = await response.json();
+      console.log('Response data:', data);
+      return data;
+    } catch (error) {
+      console.error('Request error:', error);
+      throw error;
+    }
+  }
+
+  // Product API methods using Edge Functions
   products = {
     getAll: async (params?: {
       category?: string;
@@ -21,45 +60,37 @@ class ApiClient {
       try {
         console.log('Fetching products with params:', params);
         
-        let query = supabase.from('products').select('*', { count: 'exact' });
-        
+        const queryParams = new URLSearchParams();
         if (params?.category && params.category !== 'all') {
-          query = query.eq('category', params.category);
+          queryParams.append('category', params.category);
         }
-        
         if (params?.search) {
-          query = query.or(`name.ilike.%${params.search}%,description.ilike.%${params.search}%`);
+          queryParams.append('search', params.search);
         }
-        
-        // Add sorting
-        const sortBy = params?.sortBy || 'name';
-        query = query.order(sortBy, { ascending: true });
-        
+        if (params?.sortBy) {
+          queryParams.append('sortBy', params.sortBy);
+        }
         if (params?.limit) {
-          query = query.limit(params.limit);
+          queryParams.append('limit', params.limit.toString());
         }
-        
         if (params?.offset) {
-          query = query.range(params.offset, params.offset + (params.limit || 10) - 1);
+          queryParams.append('offset', params.offset.toString());
         }
+
+        const endpoint = `products${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        const result = await this.request(endpoint);
         
-        const { data, error, count } = await query;
-        
-        console.log('Products query result:', { data, error, count });
-        
-        if (error) {
-          console.error('Products query error:', error);
-          return { error: error.message, data: [] };
-        }
-        
-        return { 
-          data: data || [], 
-          count: count || data?.length || 0,
-          error: undefined 
+        return {
+          data: result.data || [],
+          count: result.count || 0,
+          error: result.error
         };
       } catch (error) {
         console.error('Products fetch error:', error);
-        return { error: 'Failed to fetch products', data: [] };
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to fetch products',
+          data: [] 
+        };
       }
     },
 
@@ -67,31 +98,22 @@ class ApiClient {
       try {
         console.log('Fetching product by ID:', id);
         
-        const { data, error } = await supabase
-          .from('products')
-          .select('*')
-          .eq('id', id)
-          .maybeSingle();
+        const result = await this.request(`products/${id}`);
         
-        console.log('Product by ID result:', { data, error });
-        
-        if (error) {
-          console.error('Product by ID error:', error);
-          return { error: error.message };
+        if (result.error) {
+          return { error: result.error };
         }
         
-        if (!data) {
-          return { error: 'Product not found' };
-        }
-        
-        return { data };
+        return { data: result.data };
       } catch (error) {
         console.error('Product fetch by ID error:', error);
-        return { error: 'Failed to fetch product' };
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to fetch product'
+        };
       }
     },
 
-    create: (product: {
+    create: async (product: {
       name: string;
       description?: string;
       price: number;
@@ -99,31 +121,26 @@ class ApiClient {
       image_url?: string;
       stock_quantity?: number;
       is_prescription_required?: boolean;
-    }) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        try {
-          const { data, error } = await supabase
-            .from('products')
-            .insert([{
-              name: product.name,
-              description: product.description || null,
-              price: product.price,
-              category: product.category,
-              image_url: product.image_url || null,
-              stock_quantity: product.stock_quantity || 0,
-              is_prescription_required: product.is_prescription_required || false
-            }])
-            .select()
-            .single();
-          
-          resolve({ data, error: error?.message });
-        } catch (error) {
-          resolve({ error: 'Failed to create product' });
-        }
-      });
+    }): Promise<ApiResponse> => {
+      try {
+        const result = await this.request('products', {
+          method: 'POST',
+          body: JSON.stringify(product),
+        });
+        
+        return {
+          data: result.data,
+          error: result.error,
+          message: result.message
+        };
+      } catch (error) {
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to create product'
+        };
+      }
     },
 
-    update: (id: string, product: Partial<{
+    update: async (id: string, product: Partial<{
       name: string;
       description: string;
       price: number;
@@ -131,120 +148,83 @@ class ApiClient {
       image_url: string;
       stock_quantity: number;
       is_prescription_required: boolean;
-    }>) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        try {
-          const updateFields: any = {};
-          if (product.name) updateFields.name = product.name;
-          if (product.description !== undefined) updateFields.description = product.description;
-          if (product.price) updateFields.price = product.price;
-          if (product.category) updateFields.category = product.category;
-          if (product.image_url !== undefined) updateFields.image_url = product.image_url;
-          if (product.stock_quantity !== undefined) updateFields.stock_quantity = product.stock_quantity;
-          if (product.is_prescription_required !== undefined) updateFields.is_prescription_required = product.is_prescription_required;
-          
-          const { data, error } = await supabase
-            .from('products')
-            .update(updateFields)
-            .eq('id', id)
-            .select()
-            .single();
-          
-          resolve({ data, error: error?.message });
-        } catch (error) {
-          resolve({ error: 'Failed to update product' });
-        }
-      });
+    }>): Promise<ApiResponse> => {
+      try {
+        const result = await this.request(`products/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify(product),
+        });
+        
+        return {
+          data: result.data,
+          error: result.error,
+          message: result.message
+        };
+      } catch (error) {
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to update product'
+        };
+      }
     },
 
-    delete: (id: string) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        try {
-          const { error } = await supabase
-            .from('products')
-            .delete()
-            .eq('id', id);
-          
-          resolve({ error: error?.message });
-        } catch (error) {
-          resolve({ error: 'Failed to delete product' });
-        }
-      });
+    delete: async (id: string): Promise<ApiResponse> => {
+      try {
+        const result = await this.request(`products/${id}`, {
+          method: 'DELETE',
+        });
+        
+        return {
+          error: result.error,
+          message: result.message
+        };
+      } catch (error) {
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to delete product'
+        };
+      }
     },
   };
 
-  // Order API methods
+  // Order API methods using Edge Functions
   orders = {
-    getByUserId: (userId: string, params?: { status?: string }) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        try {
-          let query = supabase
-            .from('orders')
-            .select(`
-              *,
-              order_items (
-                *,
-                products (
-                  id,
-                  name,
-                  image_url
-                )
-              )
-            `)
-            .eq('user_id', userId);
-          
-          if (params?.status) {
-            query = query.eq('status', params.status);
-          }
-          
-          query = query.order('created_at', { ascending: false });
-          
-          const { data, error } = await query;
-          
-          resolve({ data: data || [], count: data?.length || 0, error: error?.message });
-        } catch (error) {
-          resolve({ error: 'Failed to fetch orders' });
+    getByUserId: async (userId: string, params?: { status?: string }): Promise<ApiResponse> => {
+      try {
+        const queryParams = new URLSearchParams({ user_id: userId });
+        if (params?.status) {
+          queryParams.append('status', params.status);
         }
-      });
+
+        const result = await this.request(`orders?${queryParams.toString()}`);
+        
+        return {
+          data: result.data || [],
+          count: result.count || 0,
+          error: result.error
+        };
+      } catch (error) {
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to fetch orders'
+        };
+      }
     },
 
-    getById: (id: string) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        try {
-          const { data, error } = await supabase
-            .from('orders')
-            .select(`
-              *,
-              order_items (
-                *,
-                products (
-                  id,
-                  name,
-                  image_url,
-                  category
-                )
-              ),
-              users (
-                full_name,
-                email,
-                phone
-              )
-            `)
-            .eq('id', id)
-            .single();
-          
-          if (error) {
-            resolve({ error: error.code === 'PGRST116' ? 'Order not found' : error.message });
-          } else {
-            resolve({ data });
-          }
-        } catch (error) {
-          resolve({ error: 'Failed to fetch order' });
+    getById: async (id: string): Promise<ApiResponse> => {
+      try {
+        const result = await this.request(`orders/${id}`);
+        
+        if (result.error) {
+          return { error: result.error };
         }
-      });
+        
+        return { data: result.data };
+      } catch (error) {
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to fetch order'
+        };
+      }
     },
 
-    create: (order: {
+    create: async (order: {
       user_id: string;
       total_amount: number;
       status?: string;
@@ -254,332 +234,244 @@ class ApiClient {
         quantity: number;
         price: number;
       }>;
-    }) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        try {
-          // Create order
-          const { data: orderData, error: orderError } = await supabase
-            .from('orders')
-            .insert([{
-              user_id: order.user_id,
-              total_amount: order.total_amount,
-              status: order.status || 'pending',
-              delivery_address: order.delivery_address || null
-            }])
-            .select()
-            .single();
-          
-          if (orderError) {
-            resolve({ error: 'Failed to create order' });
-            return;
-          }
-          
-          // Create order items
-          const orderItems = order.items.map(item => ({
-            order_id: orderData.id,
-            product_id: item.product_id,
-            quantity: item.quantity,
-            price: item.price
-          }));
-          
-          const { error: itemsError } = await supabase
-            .from('order_items')
-            .insert(orderItems);
-          
-          if (itemsError) {
-            // Rollback: delete the order if items creation fails
-            await supabase.from('orders').delete().eq('id', orderData.id);
-            resolve({ error: 'Failed to create order items' });
-            return;
-          }
-          
-          resolve({ data: orderData });
-        } catch (error) {
-          resolve({ error: 'Failed to create order' });
-        }
-      });
+    }): Promise<ApiResponse> => {
+      try {
+        const result = await this.request('orders', {
+          method: 'POST',
+          body: JSON.stringify(order),
+        });
+        
+        return {
+          data: result.data,
+          error: result.error,
+          message: result.message
+        };
+      } catch (error) {
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to create order'
+        };
+      }
     },
 
-    updateStatus: (id: string, status: string) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        try {
-          const validStatuses = ['pending', 'confirmed', 'preparing', 'packed', 'shipped', 'delivered', 'cancelled'];
-          
-          if (!validStatuses.includes(status)) {
-            resolve({ error: 'Invalid status' });
-            return;
-          }
-          
-          const { data, error } = await supabase
-            .from('orders')
-            .update({ 
-              status,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', id)
-            .select()
-            .single();
-          
-          if (error) {
-            resolve({ error: error.code === 'PGRST116' ? 'Order not found' : error.message });
-          } else {
-            resolve({ data });
-          }
-        } catch (error) {
-          resolve({ error: 'Failed to update order status' });
-        }
-      });
+    updateStatus: async (id: string, status: string): Promise<ApiResponse> => {
+      try {
+        const result = await this.request(`orders/${id}/status`, {
+          method: 'PUT',
+          body: JSON.stringify({ status }),
+        });
+        
+        return {
+          data: result.data,
+          error: result.error,
+          message: result.message
+        };
+      } catch (error) {
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to update order status'
+        };
+      }
     },
   };
 
-  // Prescription API methods
+  // Prescription API methods using Edge Functions
   prescriptions = {
-    getAll: (params?: {
+    getAll: async (params?: {
       user_id?: string;
       pharmacist_id?: string;
       status?: string;
-    }) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        try {
-          let query = supabase
-            .from('prescriptions')
-            .select(`
-              *,
-              users!prescriptions_user_id_fkey (
-                full_name,
-                email,
-                phone
-              ),
-              pharmacist:users!prescriptions_pharmacist_id_fkey (
-                full_name,
-                email
-              )
-            `);
-          
-          if (params?.user_id) {
-            query = query.eq('user_id', params.user_id);
-          }
-          
-          if (params?.pharmacist_id) {
-            query = query.eq('pharmacist_id', params.pharmacist_id);
-          }
-          
-          if (params?.status) {
-            query = query.eq('status', params.status);
-          }
-          
-          query = query.order('created_at', { ascending: false });
-          
-          const { data, error } = await query;
-          
-          resolve({ data: data || [], count: data?.length || 0, error: error?.message });
-        } catch (error) {
-          resolve({ error: 'Failed to fetch prescriptions' });
-        }
-      });
+    }): Promise<ApiResponse> => {
+      try {
+        const queryParams = new URLSearchParams();
+        if (params?.user_id) queryParams.append('user_id', params.user_id);
+        if (params?.pharmacist_id) queryParams.append('pharmacist_id', params.pharmacist_id);
+        if (params?.status) queryParams.append('status', params.status);
+
+        const endpoint = `prescriptions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+        const result = await this.request(endpoint);
+        
+        return {
+          data: result.data || [],
+          count: result.count || 0,
+          error: result.error
+        };
+      } catch (error) {
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to fetch prescriptions'
+        };
+      }
     },
 
-    getById: (id: string) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        try {
-          const { data, error } = await supabase
-            .from('prescriptions')
-            .select(`
-              *,
-              users!prescriptions_user_id_fkey (
-                full_name,
-                email,
-                phone,
-                address
-              ),
-              pharmacist:users!prescriptions_pharmacist_id_fkey (
-                full_name,
-                email
-              ),
-              orders (
-                id,
-                status,
-                total_amount,
-                delivery_address
-              )
-            `)
-            .eq('id', id)
-            .single();
-          
-          if (error) {
-            resolve({ error: error.code === 'PGRST116' ? 'Prescription not found' : error.message });
-          } else {
-            resolve({ data });
-          }
-        } catch (error) {
-          resolve({ error: 'Failed to fetch prescription' });
+    getById: async (id: string): Promise<ApiResponse> => {
+      try {
+        const result = await this.request(`prescriptions/${id}`);
+        
+        if (result.error) {
+          return { error: result.error };
         }
-      });
+        
+        return { data: result.data };
+      } catch (error) {
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to fetch prescription'
+        };
+      }
     },
 
-    create: (prescription: {
+    create: async (prescription: {
       user_id: string;
       prescription_text?: string;
       image_url?: string;
       status?: string;
-    }) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        try {
-          const { data, error } = await supabase
-            .from('prescriptions')
-            .insert([{
-              user_id: prescription.user_id,
-              prescription_text: prescription.prescription_text || null,
-              image_url: prescription.image_url || null,
-              status: prescription.status || 'pending'
-            }])
-            .select()
-            .single();
-          
-          resolve({ data, error: error?.message });
-        } catch (error) {
-          resolve({ error: 'Failed to create prescription' });
-        }
-      });
+    }): Promise<ApiResponse> => {
+      try {
+        const result = await this.request('prescriptions', {
+          method: 'POST',
+          body: JSON.stringify(prescription),
+        });
+        
+        return {
+          data: result.data,
+          error: result.error,
+          message: result.message
+        };
+      } catch (error) {
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to create prescription'
+        };
+      }
     },
 
-    review: (id: string, reviewData: {
+    review: async (id: string, reviewData: {
       pharmacist_id: string;
       status: string;
       notes?: string;
-    }) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        try {
-          const validStatuses = ['pending', 'reviewed', 'approved', 'rejected'];
-          
-          if (!validStatuses.includes(reviewData.status)) {
-            resolve({ error: 'Invalid status' });
-            return;
-          }
-          
-          const { data, error } = await supabase
-            .from('prescriptions')
-            .update({
-              pharmacist_id: reviewData.pharmacist_id,
-              status: reviewData.status,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', id)
-            .select()
-            .single();
-          
-          if (error) {
-            resolve({ error: error.code === 'PGRST116' ? 'Prescription not found' : error.message });
-          } else {
-            resolve({ data });
-          }
-        } catch (error) {
-          resolve({ error: 'Failed to review prescription' });
-        }
-      });
+    }): Promise<ApiResponse> => {
+      try {
+        const result = await this.request(`prescriptions/${id}/review`, {
+          method: 'PUT',
+          body: JSON.stringify(reviewData),
+        });
+        
+        return {
+          data: result.data,
+          error: result.error,
+          message: result.message
+        };
+      } catch (error) {
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to review prescription'
+        };
+      }
     },
 
-    linkOrder: (id: string, orderId: string) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        try {
-          const { data, error } = await supabase
-            .from('prescriptions')
-            .update({
-              order_id: orderId,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', id)
-            .select()
-            .single();
-          
-          if (error) {
-            resolve({ error: error.code === 'PGRST116' ? 'Prescription not found' : error.message });
-          } else {
-            resolve({ data });
-          }
-        } catch (error) {
-          resolve({ error: 'Failed to link prescription to order' });
-        }
-      });
+    linkOrder: async (id: string, orderId: string): Promise<ApiResponse> => {
+      try {
+        const result = await this.request(`prescriptions/${id}/link-order`, {
+          method: 'PUT',
+          body: JSON.stringify({ order_id: orderId }),
+        });
+        
+        return {
+          data: result.data,
+          error: result.error,
+          message: result.message
+        };
+      } catch (error) {
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to link prescription to order'
+        };
+      }
     },
   };
 
-  // User API methods
+  // User API methods using Edge Functions
   users = {
-    login: (credentials: { username: string; password: string }) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        // This method is now handled directly in AuthContext
-        resolve({ error: 'Use AuthContext login method instead' });
-      });
+    login: async (credentials: { username: string; password: string }): Promise<ApiResponse> => {
+      try {
+        console.log('Calling users/login Edge Function with:', credentials.username);
+        
+        const result = await this.request('users/login', {
+          method: 'POST',
+          body: JSON.stringify(credentials),
+        });
+        
+        return {
+          data: result.data,
+          error: result.error,
+          message: result.message
+        };
+      } catch (error) {
+        console.error('Login API error:', error);
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to login'
+        };
+      }
     },
 
-    signUp: (userData: {
+    signUp: async (userData: {
       email: string;
       username: string;
       password: string;
       full_name: string;
       phone?: string;
       address?: string;
-    }) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        // This method is now handled directly in AuthContext
-        resolve({ error: 'Use AuthContext signUp method instead' });
-      });
+    }): Promise<ApiResponse> => {
+      try {
+        const result = await this.request('users/signup', {
+          method: 'POST',
+          body: JSON.stringify(userData),
+        });
+        
+        return {
+          data: result.data,
+          error: result.error,
+          message: result.message
+        };
+      } catch (error) {
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to sign up'
+        };
+      }
     },
 
-    getById: (id: string) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        try {
-          const { data, error } = await supabase
-            .from('users')
-            .select('id, email, username, role, full_name, phone, address, created_at, updated_at')
-            .eq('id', id)
-            .single();
-          
-          if (error) {
-            resolve({ error: error.code === 'PGRST116' ? 'User not found' : error.message });
-          } else {
-            resolve({ data });
-          }
-        } catch (error) {
-          resolve({ error: 'Failed to fetch user' });
+    getById: async (id: string): Promise<ApiResponse> => {
+      try {
+        const result = await this.request(`users/${id}`);
+        
+        if (result.error) {
+          return { error: result.error };
         }
-      });
+        
+        return { data: result.data };
+      } catch (error) {
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to fetch user'
+        };
+      }
     },
 
-    update: (id: string, userData: {
+    update: async (id: string, userData: {
       email?: string;
       full_name?: string;
       phone?: string;
       address?: string;
-    }) => {
-      return new Promise<ApiResponse>(async (resolve) => {
-        try {
-          const updateFields: any = {};
-          
-          if (userData.email) updateFields.email = userData.email;
-          if (userData.full_name) updateFields.full_name = userData.full_name;
-          if (userData.phone !== undefined) updateFields.phone = userData.phone;
-          if (userData.address !== undefined) updateFields.address = userData.address;
-          
-          updateFields.updated_at = new Date().toISOString();
-          
-          const { data, error } = await supabase
-            .from('users')
-            .update(updateFields)
-            .eq('id', id)
-            .select('id, email, username, role, full_name, phone, address, created_at, updated_at')
-            .single();
-          
-          if (error) {
-            resolve({ error: error.code === 'PGRST116' ? 'User not found' : error.message });
-          } else {
-            resolve({ data });
-          }
-        } catch (error) {
-          resolve({ error: 'Failed to update user' });
-        }
-      });
+    }): Promise<ApiResponse> => {
+      try {
+        const result = await this.request(`users/${id}`, {
+          method: 'PUT',
+          body: JSON.stringify(userData),
+        });
+        
+        return {
+          data: result.data,
+          error: result.error,
+          message: result.message
+        };
+      } catch (error) {
+        return { 
+          error: error instanceof Error ? error.message : 'Failed to update user'
+        };
+      }
     },
   };
 }

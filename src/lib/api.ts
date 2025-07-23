@@ -48,6 +48,46 @@ class ApiClient {
     }
   }
 
+  // Fallback method for direct Supabase queries when Edge Functions fail
+  private async directQuery(table: string, options: any = {}): Promise<any> {
+    try {
+      console.log(`Using direct Supabase query for ${table}`);
+      let query = supabase.from(table).select(options.select || '*');
+      
+      if (options.filters) {
+        Object.entries(options.filters).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== 'all') {
+            query = query.eq(key, value);
+          }
+        });
+      }
+      
+      if (options.search) {
+        query = query.or(`name.ilike.%${options.search}%,description.ilike.%${options.search}%`);
+      }
+      
+      if (options.orderBy) {
+        query = query.order(options.orderBy, { ascending: options.ascending !== false });
+      }
+      
+      if (options.single) {
+        query = query.maybeSingle();
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('Direct query error:', error);
+        return { error: error.message };
+      }
+      
+      return { data, count: Array.isArray(data) ? data.length : (data ? 1 : 0) };
+    } catch (error) {
+      console.error('Direct query failed:', error);
+      return { error: error instanceof Error ? error.message : 'Query failed' };
+    }
+  }
+
   // Product API methods using Edge Functions
   products = {
     getAll: async (params?: {
@@ -78,13 +118,31 @@ class ApiClient {
         }
 
         const endpoint = `products${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-        const result = await this.request(endpoint);
         
-        return {
-          data: result.data || [],
-          count: result.count || 0,
-          error: result.error
-        };
+        try {
+          const result = await this.request(endpoint);
+          return {
+            data: result.data || [],
+            count: result.count || 0,
+            error: result.error
+          };
+        } catch (edgeFunctionError) {
+          console.warn('Edge Function failed, using direct query:', edgeFunctionError);
+          
+          // Fallback to direct Supabase query
+          const result = await this.directQuery('products', {
+            filters: params?.category ? { category: params.category } : {},
+            search: params?.search,
+            orderBy: params?.sortBy || 'name',
+            ascending: true
+          });
+          
+          return {
+            data: result.data || [],
+            count: result.count || 0,
+            error: result.error
+          };
+        }
       } catch (error) {
         console.error('Products fetch error:', error);
         return { 
@@ -98,13 +156,34 @@ class ApiClient {
       try {
         console.log('Fetching product by ID:', id);
         
-        const result = await this.request(`products/${id}`);
-        
-        if (result.error) {
-          return { error: result.error };
+        try {
+          const result = await this.request(`products/${id}`);
+          
+          if (result.error) {
+            return { error: result.error };
+          }
+          
+          return { data: result.data };
+        } catch (edgeFunctionError) {
+          console.warn('Edge Function failed, using direct query:', edgeFunctionError);
+          
+          // Fallback to direct Supabase query
+          const { data, error } = await supabase
+            .from('products')
+            .select('*')
+            .eq('id', id)
+            .maybeSingle();
+          
+          if (error) {
+            return { error: error.message };
+          }
+          
+          if (!data) {
+            return { error: 'Product not found' };
+          }
+          
+          return { data };
         }
-        
-        return { data: result.data };
       } catch (error) {
         console.error('Product fetch by ID error:', error);
         return { 

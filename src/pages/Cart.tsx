@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import {
   ShoppingCart,
@@ -57,37 +57,26 @@ const Cart: React.FC = () => {
 
     setLoading(true);
     try {
-      // Create order
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert([
-          {
-            user_id: user.id,
-            total_amount: totalPrice,
-            status: 'confirmed',
-            delivery_address: checkoutForm.address
-          }
-        ])
-        .select()
-        .single();
-
-      if (orderError) throw orderError;
-
-      // Create order items
+      // Create order with items
       const orderItems = items.map(item => ({
-        order_id: order.id,
         product_id: item.id,
         quantity: item.quantity,
         price: item.price
       }));
 
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
+      const response = await api.orders.create({
+        user_id: user.id,
+        total_amount: totalPrice,
+        status: 'confirmed',
+        delivery_address: checkoutForm.address,
+        items: orderItems
+      });
 
-      if (itemsError) throw itemsError;
+      if (response.error) {
+        throw new Error(response.error);
+      }
 
-      setOrderId(order.id);
+      setOrderId(response.data.id);
       setOrderSuccess(true);
       clearCart();
     } catch (error) {

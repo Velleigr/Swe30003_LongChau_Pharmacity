@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import { useCart } from '../contexts/CartContext';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import {
@@ -78,13 +78,13 @@ const Order: React.FC = () => {
 
   const fetchProducts = async () => {
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .order('name');
+      const response = await api.products.getAll({ sortBy: 'name' });
 
-      if (error) throw error;
-      setProducts(data || []);
+      if (response.error) {
+        throw new Error(response.error);
+      }
+      
+      setProducts(response.data || []);
     } catch (error) {
       console.error('Error fetching products:', error);
       setProducts([]);

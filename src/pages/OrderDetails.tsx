@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import { useCart } from '../contexts/CartContext';
 import DeliveryTracker from '../components/ui/DeliveryTracker';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -68,18 +68,17 @@ const OrderDetails: React.FC = () => {
 
   const fetchProduct = async () => {
     try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*')
-        .eq('id', id);
+      const response = await api.products.getById(id!);
 
-      if (error) throw error;
-      
-      if (data && data.length > 0) {
-        setProduct(data[0]);
-      } else {
-        setProduct(null);
+      if (response.error) {
+        if (response.error === 'Product not found') {
+          setProduct(null);
+          return;
+        }
+        throw new Error(response.error);
       }
+      
+      setProduct(response.data);
     } catch (error) {
       console.error('Error fetching product:', error);
       setProduct(null);

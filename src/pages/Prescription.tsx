@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import DeliveryTracker from '../components/ui/DeliveryTracker';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -67,22 +67,18 @@ const Prescription: React.FC = () => {
         imageUrl = 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg';
       }
 
-      const { data, error } = await supabase
-        .from('prescriptions')
-        .insert([
-          {
-            user_id: user.id,
-            prescription_text: form.prescriptionText || null,
-            image_url: imageUrl,
-            status: 'pending'
-          }
-        ])
-        .select()
-        .single();
+      const response = await api.prescriptions.create({
+        user_id: user.id,
+        prescription_text: form.prescriptionText || undefined,
+        image_url: imageUrl || undefined,
+        status: 'pending'
+      });
 
-      if (error) throw error;
+      if (response.error) {
+        throw new Error(response.error);
+      }
 
-      setPrescriptionId(data.id);
+      setPrescriptionId(response.data.id);
       setSubmitted(true);
     } catch (error) {
       console.error('Error submitting prescription:', error);

@@ -9,7 +9,35 @@ interface ApiResponse<T = any> {
 }
 
 class ApiClient {
-class ApiClient {
+  // Product API methods
+  products = {
+    getAll: (params?: {
+      category?: string;
+      search?: string;
+      limit?: number;
+      offset?: number;
+    }) => {
+      return new Promise<ApiResponse>(async (resolve) => {
+        try {
+          let query = supabase.from('products').select('*', { count: 'exact' });
+          
+          if (params?.category) {
+            query = query.eq('category', params.category);
+          }
+          
+          if (params?.search) {
+            query = query.or(`name.ilike.%${params.search}%,description.ilike.%${params.search}%`);
+          }
+          
+          if (params?.limit) {
+            query = query.limit(params.limit);
+          }
+          
+          if (params?.offset) {
+            query = query.range(params.offset, params.offset + (params.limit || 10) - 1);
+          }
+          
+          const { data, error } = await query;
           
           resolve({ data: data || [], count: data?.length || 0, error: error?.message });
         } catch (error) {

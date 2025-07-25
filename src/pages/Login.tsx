@@ -88,11 +88,16 @@ const Login: React.FC = () => {
     fullName?: string;
   }>({});
   
-  const { login, signUp, error } = useAuth();
+  const { login, signUp, error, connectionStatus, checkConnection } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
   const from = location.state?.from?.pathname || '/';
+
+  // Handle connection retry
+  const handleRetryConnection = async () => {
+    await checkConnection();
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -195,6 +200,45 @@ const Login: React.FC = () => {
           </p>
         </motion.div>
 
+        {/* Connection Status */}
+        {connectionStatus === 'disconnected' && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="w-5 h-5 text-red-600" />
+                <span className="text-red-800 text-sm font-medium">
+                  Mất kết nối cơ sở dữ liệu
+                </span>
+              </div>
+              <button
+                onClick={handleRetryConnection}
+                className="text-red-600 hover:text-red-700 text-sm font-medium underline"
+              >
+                Thử lại
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {connectionStatus === 'checking' && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4"
+          >
+            <div className="flex items-center space-x-2">
+              <LoadingSpinner size="sm" />
+              <span className="text-blue-800 text-sm">
+                Đang kiểm tra kết nối...
+              </span>
+            </div>
+          </motion.div>
+        )}
+
         {/* Login/SignUp Form */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -285,7 +329,7 @@ const Login: React.FC = () => {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || connectionStatus === 'disconnected'}
                 className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold inline-flex items-center justify-center"
               >
                 {loading ? (
@@ -293,6 +337,8 @@ const Login: React.FC = () => {
                     <LoadingSpinner size="sm" className="mr-2" />
                     Đang đăng nhập...
                   </>
+                ) : connectionStatus === 'disconnected' ? (
+                  'Mất kết nối'
                 ) : (
                   'Đăng nhập'
                 )}
@@ -479,7 +525,7 @@ const Login: React.FC = () => {
               {/* Submit Button */}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || connectionStatus === 'disconnected'}
                 className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-semibold inline-flex items-center justify-center"
               >
                 {loading ? (
@@ -487,6 +533,8 @@ const Login: React.FC = () => {
                     <LoadingSpinner size="sm" className="mr-2" />
                     Đang tạo tài khoản...
                   </>
+                ) : connectionStatus === 'disconnected' ? (
+                  'Mất kết nối'
                 ) : (
                   <>
                     <UserPlus className="w-5 h-5 mr-2" />

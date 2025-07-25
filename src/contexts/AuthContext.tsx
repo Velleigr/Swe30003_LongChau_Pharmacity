@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '../lib/supabase';
-import { User as SupabaseUser } from '@supabase/supabase-js';
 
 interface User {
   id: string;
@@ -26,10 +25,12 @@ interface SignUpData {
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  connectionStatus: 'checking' | 'connected' | 'disconnected';
   login: (username: string, password: string) => Promise<boolean>;
   signUp: (data: SignUpData) => Promise<boolean>;
   logout: () => void;
   error: string | null;
+  checkConnection: () => Promise<boolean>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -63,27 +64,73 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Check if user is logged in from localStorage
-    const savedUser = localStorage.getItem('pharmacy_user');
-    if (savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser);
-        setUser(parsedUser);
-      } catch (error) {
-        console.error('Error parsing saved user:', error);
-        localStorage.removeItem('pharmacy_user');
+  // Check Supabase connection
+  const checkConnection = async (): Promise<boolean> => {
+    try {
+      setConnectionStatus('checking');
+      
+      // Simple query to test connection
+      const { error } = await supabase
+        .from('users')
+        .select('id')
+        .limit(1);
+      
+      if (error) {
+        console.error('Supabase connection error:', error);
+        setConnectionStatus('disconnected');
+        setError('Không thể kết nối đến cơ sở dữ liệu. Vui lòng kiểm tra cấu hình Supabase.');
+        return false;
       }
+      
+      setConnectionStatus('connected');
+      setError(null);
+      return true;
+    } catch (error) {
+      console.error('Connection check failed:', error);
+      setConnectionStatus('disconnected');
+      setError('Lỗi kết nối mạng. Vui lòng kiểm tra kết nối internet.');
+      return false;
     }
-    setLoading(false);
+  };
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      // First check Supabase connection
+      const isConnected = await checkConnection();
+      
+      if (isConnected) {
+        // Check if user is logged in from localStorage
+        const savedUser = localStorage.getItem('pharmacy_user');
+        if (savedUser) {
+          try {
+            const parsedUser = JSON.parse(savedUser);
+            setUser(parsedUser);
+          } catch (error) {
+            console.error('Error parsing saved user:', error);
+            localStorage.removeItem('pharmacy_user');
+          }
+        }
+      }
+      
+      setLoading(false);
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
       setLoading(true);
       setError(null);
+
+      // Check connection before attempting login
+      const isConnected = await checkConnection();
+      if (!isConnected) {
+        return false;
+      }
 
       // Query user by username
       const { data: userData, error: userError } = await supabase
@@ -130,6 +177,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
+
+      // Check connection before attempting signup
+      const isConnected = await checkConnection();
+      if (!isConnected) {
+        return false;
+      }
 
       // Check if username or email already exists
       const { data: existingUser, error: checkError } = await supabase
@@ -205,10 +258,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const value: AuthContextType = {
     user,
     loading,
+    connectionStatus,
     login,
     signUp,
     logout,
     error,
+    checkConnection,
   };
 
   return (

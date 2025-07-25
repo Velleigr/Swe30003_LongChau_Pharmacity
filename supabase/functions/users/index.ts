@@ -1,15 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { hash as bcryptHash, compare as bcryptCompare } from 'https://esm.sh/bcryptjs@2.4.3'
 
-// Dynamic CORS headers function
-function getCorsHeaders(request: Request) {
-  const origin = request.headers.get('Origin')
-  return {
-    'Access-Control-Allow-Origin': origin || '*',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-  }
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
 }
 
 // Initialize Supabase client
@@ -42,13 +37,18 @@ interface SignUpRequest {
   address?: string;
 }
 
-// Secure password hashing with bcrypt
+// Simple password hashing (in production, use bcrypt or similar)
 async function hashPassword(password: string): Promise<string> {
-  return await bcryptHash(password, 10);
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return await bcryptCompare(password, hash);
+  const hashedInput = await hashPassword(password);
+  return hashedInput === hash;
 }
 
 // User Controller Functions
@@ -256,8 +256,6 @@ const UserController = {
 }
 
 serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req)
-  
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })

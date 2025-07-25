@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabase';
-import bcrypt from 'bcryptjs';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import {
   User,
@@ -81,7 +79,6 @@ const Login: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [validationErrors, setValidationErrors] = useState<{
     email?: string;
     username?: string;
@@ -91,7 +88,7 @@ const Login: React.FC = () => {
     fullName?: string;
   }>({});
   
-  const { login, signUp } = useAuth();
+  const { login, signUp, error } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -100,13 +97,11 @@ const Login: React.FC = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
-    if (error) setError('');
   };
 
   const handleSignUpInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setSignUpForm(prev => ({ ...prev, [name]: value }));
-    if (error) setError('');
     
     // Clear validation error for this field
     if (validationErrors[name as keyof typeof validationErrors]) {
@@ -117,17 +112,14 @@ const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
 
     try {
       const success = await login(form.username, form.password);
       if (success) {
         navigate(from, { replace: true });
-      } else {
-        setError('Tên đăng nhập hoặc mật khẩu không đúng');
       }
     } catch (err) {
-      setError('Đã xảy ra lỗi khi đăng nhập. Vui lòng thử lại.');
+      console.error('Login error:', err);
     } finally {
       setLoading(false);
     }
@@ -136,7 +128,6 @@ const Login: React.FC = () => {
   const handleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setError('');
     setValidationErrors({});
 
     // Comprehensive validation
@@ -174,16 +165,11 @@ const Login: React.FC = () => {
         navigate(from, { replace: true });
       }
     } catch (err) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError('Đã xảy ra lỗi khi tạo tài khoản. Vui lòng thử lại.');
-      }
+      console.error('Signup error:', err);
     } finally {
       setLoading(false);
     }
   };
-
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -222,7 +208,7 @@ const Login: React.FC = () => {
               type="button"
               onClick={() => {
                 setIsSignUp(false);
-                setError('');
+                setValidationErrors({});
               }}
               className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
                 !isSignUp
@@ -236,7 +222,7 @@ const Login: React.FC = () => {
               type="button"
               onClick={() => {
                 setIsSignUp(true);
-                setError('');
+                setValidationErrors({});
               }}
               className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
                 isSignUp
@@ -524,6 +510,18 @@ const Login: React.FC = () => {
               </div>
             </motion.div>
           )}
+
+          {/* Demo Accounts Info */}
+          <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+            <h3 className="text-sm font-semibold text-blue-900 mb-2">
+              Tài khoản demo có sẵn:
+            </h3>
+            <div className="text-xs text-blue-800 space-y-1">
+              <p>• <strong>Manager:</strong> manager / 123</p>
+              <p>• <strong>Pharmacist:</strong> pharmacist / 123</p>
+              <p>• <strong>Customer:</strong> customer1 / 123</p>
+            </div>
+          </div>
         </motion.div>
 
         {/* Back to Home */}

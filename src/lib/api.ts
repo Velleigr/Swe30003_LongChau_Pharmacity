@@ -1,5 +1,7 @@
 // API client for interacting with Supabase Edge Functions
-import { supabase, isSupabaseConfigured } from './supabase';
+const API_BASE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+const API_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
 interface ApiResponse<T = any> {
   data?: T;
   error?: string;
@@ -9,196 +11,66 @@ interface ApiResponse<T = any> {
 }
 
 class ApiClient {
-  private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
+  private async request<T = any>(
+    endpoint: string,
+    options: RequestInit = {}
+  ): Promise<ApiResponse<T>> {
     try {
-      // Check if Supabase is properly configured
-      if (!isSupabaseConfigured) {
-        throw new Error('Supabase is not properly configured. Please check your environment variables.');
-      }
-      
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
-      if (!supabaseUrl || !supabaseKey || 
-          supabaseUrl === 'https://your-project.supabase.co' || 
-          supabaseKey === 'your-anon-key') {
-        throw new Error('Supabase environment variables are not properly configured. Please update your .env file with actual Supabase credentials.');
-      }
-
-      const url = `${supabaseUrl}/functions/v1/${endpoint}`;
-      console.log('Making request to:', url);
-      
-      const response = await fetch(url, {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
         headers: {
-          'Authorization': `Bearer ${supabaseKey}`,
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${API_KEY}`,
           ...options.headers,
         },
       });
 
-      console.log('Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Request failed:', errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        // If we can't parse JSON, it's likely we got HTML instead
+        const text = await response.text();
+        if (text.includes('<!doctype') || text.includes('<html>')) {
+          throw new Error('Edge Functions not deployed. Please deploy the Supabase Edge Functions.');
+        }
+        throw new Error('Invalid response format');
       }
 
-      const data = await response.json();
-      console.log('Response data:', data);
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+
       return data;
     } catch (error) {
-      console.error('Request error:', error);
+      console.error(`API Error [${endpoint}]:`, error);
       throw error;
     }
   }
 
-  // Fallback method for direct Supabase queries when Edge Functions fail (products only)
-  private async directQuery(table: string, options: any = {}): Promise<any> {
-    try {
-      console.log(`Using direct Supabase query for ${table}`);
-      let query = supabase.from(table).select(options.select || '*');
-      
-      if (options.filters) {
-        Object.entries(options.filters).forEach(([key, value]) => {
-          if (value !== undefined && value !== null && value !== 'all') {
-            query = query.eq(key, value);
-          }
-        });
-      }
-      
-      if (options.search) {
-        query = query.or(`name.ilike.%${options.search}%,description.ilike.%${options.search}%`);
-      }
-      
-      if (options.orderBy) {
-        query = query.order(options.orderBy, { ascending: options.ascending !== false });
-      }
-      
-      if (options.single) {
-        query = query.maybeSingle();
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) {
-        console.error('Direct query error:', error);
-        return { error: error.message };
-      }
-      
-      return { data, count: Array.isArray(data) ? data.length : (data ? 1 : 0) };
-    } catch (error) {
-      console.error('Direct query failed:', error);
-      return { error: error instanceof Error ? error.message : 'Query failed' };
-    }
-  }
-
-  // Product API methods using Edge Functions
+  // Product API methods
   products = {
-    getAll: async (params?: {
+    getAll: (params?: {
       category?: string;
       search?: string;
       sortBy?: string;
-      limit?: number;
-      offset?: number;
-    }): Promise<ApiResponse> => {
-      try {
-        console.log('Fetching products with params:', params);
-        
-        const queryParams = new URLSearchParams();
-        if (params?.category && params.category !== 'all') {
-          queryParams.append('category', params.category);
-        }
-        if (params?.search) {
-          queryParams.append('search', params.search);
-        }
-        if (params?.sortBy) {
-          queryParams.append('sortBy', params.sortBy);
-        }
-        if (params?.limit) {
-          queryParams.append('limit', params.limit.toString());
-        }
-        if (params?.offset) {
-          queryParams.append('offset', params.offset.toString());
-        }
-
-        const endpoint = `products${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-        
-        try {
-          const result = await this.request(endpoint);
-          return {
-            data: result.data || [],
-            count: result.count || 0,
-            error: result.error
-          };
-        } catch (edgeFunctionError) {
-          console.warn('Edge Function failed, using direct query:', edgeFunctionError);
-          
-          // Fallback to direct Supabase query
-          const result = await this.directQuery('products', {
-            filters: params?.category ? { category: params.category } : {},
-            search: params?.search,
-            orderBy: params?.sortBy || 'name',
-            ascending: true
-          });
-          
-          return {
-            data: result.data || [],
-            count: result.count || 0,
-            error: result.error
-          };
-        }
-      } catch (error) {
-        console.error('Products fetch error:', error);
-        return { 
-          error: error instanceof Error ? error.message : 'Failed to fetch products',
-          data: [] 
-        };
-      }
+      sortOrder?: 'asc' | 'desc';
+    }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.category) searchParams.set('category', params.category);
+      if (params?.search) searchParams.set('search', params.search);
+      if (params?.sortBy) searchParams.set('sortBy', params.sortBy);
+      if (params?.sortOrder) searchParams.set('sortOrder', params.sortOrder);
+      
+      const query = searchParams.toString();
+      return this.request(`/products${query ? `?${query}` : ''}`);
     },
 
-    getById: async (id: string): Promise<ApiResponse> => {
-      try {
-        console.log('Fetching product by ID:', id);
-        
-        try {
-          const result = await this.request(`products/${id}`);
-          
-          if (result.error) {
-            return { error: result.error };
-          }
-          
-          return { data: result.data };
-        } catch (edgeFunctionError) {
-          console.warn('Edge Function failed, using direct query:', edgeFunctionError);
-          
-          // Fallback to direct Supabase query
-          const { data, error } = await supabase
-            .from('products')
-            .select('*')
-            .eq('id', id)
-            .maybeSingle();
-          
-          if (error) {
-            return { error: error.message };
-          }
-          
-          if (!data) {
-            return { error: 'Product not found' };
-          }
-          
-          return { data };
-        }
-      } catch (error) {
-        console.error('Product fetch by ID error:', error);
-        return { 
-          error: error instanceof Error ? error.message : 'Failed to fetch product'
-        };
-      }
+    getById: (id: string) => {
+      return this.request(`/products/${id}`);
     },
 
-    create: async (product: {
+    create: (product: {
       name: string;
       description?: string;
       price: number;
@@ -206,26 +78,14 @@ class ApiClient {
       image_url?: string;
       stock_quantity?: number;
       is_prescription_required?: boolean;
-    }): Promise<ApiResponse> => {
-      try {
-        const result = await this.request('products', {
-          method: 'POST',
-          body: JSON.stringify(product),
-        });
-        
-        return {
-          data: result.data,
-          error: result.error,
-          message: result.message
-        };
-      } catch (error) {
-        return { 
-          error: error instanceof Error ? error.message : 'Failed to create product'
-        };
-      }
+    }) => {
+      return this.request('/products', {
+        method: 'POST',
+        body: JSON.stringify(product),
+      });
     },
 
-    update: async (id: string, product: Partial<{
+    update: (id: string, product: Partial<{
       name: string;
       description: string;
       price: number;
@@ -233,83 +93,34 @@ class ApiClient {
       image_url: string;
       stock_quantity: number;
       is_prescription_required: boolean;
-    }>): Promise<ApiResponse> => {
-      try {
-        const result = await this.request(`products/${id}`, {
-          method: 'PUT',
-          body: JSON.stringify(product),
-        });
-        
-        return {
-          data: result.data,
-          error: result.error,
-          message: result.message
-        };
-      } catch (error) {
-        return { 
-          error: error instanceof Error ? error.message : 'Failed to update product'
-        };
-      }
+    }>) => {
+      return this.request(`/products/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(product),
+      });
     },
 
-    delete: async (id: string): Promise<ApiResponse> => {
-      try {
-        const result = await this.request(`products/${id}`, {
-          method: 'DELETE',
-        });
-        
-        return {
-          error: result.error,
-          message: result.message
-        };
-      } catch (error) {
-        return { 
-          error: error instanceof Error ? error.message : 'Failed to delete product'
-        };
-      }
+    delete: (id: string) => {
+      return this.request(`/products/${id}`, {
+        method: 'DELETE',
+      });
     },
   };
 
-  // Order API methods using Edge Functions
+  // Order API methods
   orders = {
-    getByUserId: async (userId: string, params?: { status?: string }): Promise<ApiResponse> => {
-      try {
-        const queryParams = new URLSearchParams({ user_id: userId });
-        if (params?.status) {
-          queryParams.append('status', params.status);
-        }
-
-        const result = await this.request(`orders?${queryParams.toString()}`);
-        
-        return {
-          data: result.data || [],
-          count: result.count || 0,
-          error: result.error
-        };
-      } catch (error) {
-        return { 
-          error: error instanceof Error ? error.message : 'Failed to fetch orders'
-        };
-      }
+    getByUserId: (userId: string, params?: { status?: string }) => {
+      const searchParams = new URLSearchParams({ user_id: userId });
+      if (params?.status) searchParams.set('status', params.status);
+      
+      return this.request(`/orders?${searchParams.toString()}`);
     },
 
-    getById: async (id: string): Promise<ApiResponse> => {
-      try {
-        const result = await this.request(`orders/${id}`);
-        
-        if (result.error) {
-          return { error: result.error };
-        }
-        
-        return { data: result.data };
-      } catch (error) {
-        return { 
-          error: error instanceof Error ? error.message : 'Failed to fetch order'
-        };
-      }
+    getById: (id: string) => {
+      return this.request(`/orders/${id}`);
     },
 
-    create: async (order: {
+    create: (order: {
       user_id: string;
       total_amount: number;
       status?: string;
@@ -319,244 +130,109 @@ class ApiClient {
         quantity: number;
         price: number;
       }>;
-    }): Promise<ApiResponse> => {
-      try {
-        const result = await this.request('orders', {
-          method: 'POST',
-          body: JSON.stringify(order),
-        });
-        
-        return {
-          data: result.data,
-          error: result.error,
-          message: result.message
-        };
-      } catch (error) {
-        return { 
-          error: error instanceof Error ? error.message : 'Failed to create order'
-        };
-      }
+    }) => {
+      return this.request('/orders', {
+        method: 'POST',
+        body: JSON.stringify(order),
+      });
     },
 
-    updateStatus: async (id: string, status: string): Promise<ApiResponse> => {
-      try {
-        const result = await this.request(`orders/${id}/status`, {
-          method: 'PUT',
-          body: JSON.stringify({ status }),
-        });
-        
-        return {
-          data: result.data,
-          error: result.error,
-          message: result.message
-        };
-      } catch (error) {
-        return { 
-          error: error instanceof Error ? error.message : 'Failed to update order status'
-        };
-      }
+    updateStatus: (id: string, status: string) => {
+      return this.request(`/orders/${id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status }),
+      });
     },
   };
 
-  // Prescription API methods using Edge Functions
+  // Prescription API methods
   prescriptions = {
-    getAll: async (params?: {
+    getAll: (params?: {
       user_id?: string;
       pharmacist_id?: string;
       status?: string;
-    }): Promise<ApiResponse> => {
-      try {
-        const queryParams = new URLSearchParams();
-        if (params?.user_id) queryParams.append('user_id', params.user_id);
-        if (params?.pharmacist_id) queryParams.append('pharmacist_id', params.pharmacist_id);
-        if (params?.status) queryParams.append('status', params.status);
-
-        const endpoint = `prescriptions${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-        const result = await this.request(endpoint);
-        
-        return {
-          data: result.data || [],
-          count: result.count || 0,
-          error: result.error
-        };
-      } catch (error) {
-        return { 
-          error: error instanceof Error ? error.message : 'Failed to fetch prescriptions'
-        };
-      }
+    }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.user_id) searchParams.set('user_id', params.user_id);
+      if (params?.pharmacist_id) searchParams.set('pharmacist_id', params.pharmacist_id);
+      if (params?.status) searchParams.set('status', params.status);
+      
+      const query = searchParams.toString();
+      return this.request(`/prescriptions${query ? `?${query}` : ''}`);
     },
 
-    getById: async (id: string): Promise<ApiResponse> => {
-      try {
-        const result = await this.request(`prescriptions/${id}`);
-        
-        if (result.error) {
-          return { error: result.error };
-        }
-        
-        return { data: result.data };
-      } catch (error) {
-        return { 
-          error: error instanceof Error ? error.message : 'Failed to fetch prescription'
-        };
-      }
+    getById: (id: string) => {
+      return this.request(`/prescriptions/${id}`);
     },
 
-    create: async (prescription: {
+    create: (prescription: {
       user_id: string;
       prescription_text?: string;
       image_url?: string;
       status?: string;
-    }): Promise<ApiResponse> => {
-      try {
-        const result = await this.request('prescriptions', {
-          method: 'POST',
-          body: JSON.stringify(prescription),
-        });
-        
-        return {
-          data: result.data,
-          error: result.error,
-          message: result.message
-        };
-      } catch (error) {
-        return { 
-          error: error instanceof Error ? error.message : 'Failed to create prescription'
-        };
-      }
+    }) => {
+      return this.request('/prescriptions', {
+        method: 'POST',
+        body: JSON.stringify(prescription),
+      });
     },
 
-    review: async (id: string, reviewData: {
+    review: (id: string, reviewData: {
       pharmacist_id: string;
       status: string;
       notes?: string;
-    }): Promise<ApiResponse> => {
-      try {
-        const result = await this.request(`prescriptions/${id}/review`, {
-          method: 'PUT',
-          body: JSON.stringify(reviewData),
-        });
-        
-        return {
-          data: result.data,
-          error: result.error,
-          message: result.message
-        };
-      } catch (error) {
-        return { 
-          error: error instanceof Error ? error.message : 'Failed to review prescription'
-        };
-      }
+    }) => {
+      return this.request(`/prescriptions/${id}/review`, {
+        method: 'PUT',
+        body: JSON.stringify(reviewData),
+      });
     },
 
-    linkOrder: async (id: string, orderId: string): Promise<ApiResponse> => {
-      try {
-        const result = await this.request(`prescriptions/${id}/link-order`, {
-          method: 'PUT',
-          body: JSON.stringify({ order_id: orderId }),
-        });
-        
-        return {
-          data: result.data,
-          error: result.error,
-          message: result.message
-        };
-      } catch (error) {
-        return { 
-          error: error instanceof Error ? error.message : 'Failed to link prescription to order'
-        };
-      }
+    linkOrder: (id: string, orderId: string) => {
+      return this.request(`/prescriptions/${id}/link-order`, {
+        method: 'PUT',
+        body: JSON.stringify({ order_id: orderId }),
+      });
     },
   };
 
-  // User API methods using Edge Functions
+  // User API methods
   users = {
-    login: async (credentials: { username: string; password: string }): Promise<ApiResponse> => {
-      try {
-        console.log('Calling users/login Edge Function with:', credentials.username);
-        
-        const result = await this.request('users/login', {
-          method: 'POST',
-          body: JSON.stringify(credentials),
-        });
-        
-        return {
-          data: result.data,
-          error: result.error,
-          message: result.message
-        };
-      } catch (error) {
-        console.error('Login API error:', error);
-        return { 
-          error: error instanceof Error ? error.message : 'Authentication service unavailable'
-        };
-      }
+    login: (credentials: { username: string; password: string }) => {
+      return this.request('/users/login', {
+        method: 'POST',
+        body: JSON.stringify(credentials),
+      });
     },
 
-    signUp: async (userData: {
+    signUp: (userData: {
       email: string;
       username: string;
       password: string;
       full_name: string;
       phone?: string;
       address?: string;
-    }): Promise<ApiResponse> => {
-      try {
-        const result = await this.request('users/signup', {
-          method: 'POST',
-          body: JSON.stringify(userData),
-        });
-        
-        return {
-          data: result.data,
-          error: result.error,
-          message: result.message
-        };
-      } catch (error) {
-        return { 
-          error: error instanceof Error ? error.message : 'Failed to sign up'
-        };
-      }
+    }) => {
+      return this.request('/users/signup', {
+        method: 'POST',
+        body: JSON.stringify(userData),
+      });
     },
 
-    getById: async (id: string): Promise<ApiResponse> => {
-      try {
-        const result = await this.request(`users/${id}`);
-        
-        if (result.error) {
-          return { error: result.error };
-        }
-        
-        return { data: result.data };
-      } catch (error) {
-        return { 
-          error: error instanceof Error ? error.message : 'Failed to fetch user'
-        };
-      }
+    getById: (id: string) => {
+      return this.request(`/users/${id}`);
     },
 
-    update: async (id: string, userData: {
+    update: (id: string, userData: {
       email?: string;
       full_name?: string;
       phone?: string;
       address?: string;
-    }): Promise<ApiResponse> => {
-      try {
-        const result = await this.request(`users/${id}`, {
-          method: 'PUT',
-          body: JSON.stringify(userData),
-        });
-        
-        return {
-          data: result.data,
-          error: result.error,
-          message: result.message
-        };
-      } catch (error) {
-        return { 
-          error: error instanceof Error ? error.message : 'Failed to update user'
-        };
-      }
+    }) => {
+      return this.request(`/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(userData),
+      });
     },
   };
 }

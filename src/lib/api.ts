@@ -1,5 +1,6 @@
 // API client for interacting with Supabase Edge Functions
 import { supabase } from './supabase';
+import bcrypt from 'bcryptjs';
 
 interface ApiResponse<T = any> {
   data?: T;
@@ -110,13 +111,6 @@ class ApiClient {
         console.log('User not found');
         return { error: 'Invalid username or password' };
       }
-      
-      // Hash the input password with SHA-256
-      const encoder = new TextEncoder();
-      const data = encoder.encode(password);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      const hashedPassword = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
       
       console.log('Comparing passwords...');
       console.log('Input password hash:', hashedPassword);

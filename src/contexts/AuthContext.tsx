@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
 import { api } from '../lib/api';
-import bcrypt from 'bcryptjs';
 
 interface User {
   id: string;
@@ -65,25 +63,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
       setLoading(true);
-      console.log('Attempting login via Edge Function for username:', username);
       
-      // Use the Edge Function for login
+      // Use API login
       const response = await api.users.login({ username, password });
       
       if (response.error) {
-        console.error('Login error:', response.error);
         return false;
       }
       
-      if (!response.data) {
-        console.log('No user data returned');
-        return false;
-      }
-      
-      console.log('Login successful for user:', response.data.username);
-      
+      // API login successful
       const userObj: User = response.data;
-      
       setUser(userObj);
       localStorage.setItem('pharmacy_user', JSON.stringify(userObj));
       return true;
@@ -98,32 +87,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const signUp = async (data: SignUpData): Promise<boolean> => {
     try {
       setLoading(true);
-      console.log('Attempting signup via Edge Function for username:', data.username);
       
-      // Use the Edge Function for signup
-      const response = await api.users.signUp({
-        email: data.email,
-        username: data.username,
-        password: data.password,
-        full_name: data.fullName,
-        phone: data.phone,
-        address: data.address
-      });
+      // Use API signup
+      const response = await api.users.signUp(data);
       
       if (response.error) {
-        console.error('Signup error:', response.error);
         return false;
       }
       
-      if (!response.data) {
-        console.log('No user data returned from signup');
-        return false;
-      }
-      
-      console.log('Signup successful for user:', response.data.username);
-      
+      // API signup successful
       const userObj: User = response.data;
-      
       setUser(userObj);
       localStorage.setItem('pharmacy_user', JSON.stringify(userObj));
       return true;

@@ -32,6 +32,7 @@ const Cart: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
   const [checkoutForm, setCheckoutForm] = useState<CheckoutForm>({
     fullName: user?.full_name || '',
     phone: user?.phone || '',
@@ -49,11 +50,39 @@ const Cart: React.FC = () => {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setCheckoutForm(prev => ({ ...prev, [name]: value }));
+    // Clear validation error when user starts typing
+    if (validationErrors[name]) {
+      setValidationErrors(prev => ({ ...prev, [name]: '' }));
+    }
   };
 
   const handleCheckout = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+
+    // Validate form
+    const errors: {[key: string]: string} = {};
+    
+    if (!checkoutForm.fullName.trim()) {
+      errors.fullName = 'Họ và tên là bắt buộc';
+    }
+    
+    if (!checkoutForm.phone.trim()) {
+      errors.phone = 'Số điện thoại là bắt buộc';
+    } else if (!/^[0-9]{10,11}$/.test(checkoutForm.phone.replace(/\s/g, ''))) {
+      errors.phone = 'Số điện thoại không hợp lệ';
+    }
+    
+    if (!checkoutForm.address.trim()) {
+      errors.address = 'Địa chỉ giao hàng là bắt buộc';
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      return;
+    }
+    
+    setValidationErrors({});
 
     setLoading(true);
     try {

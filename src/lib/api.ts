@@ -1,7 +1,5 @@
 // API client for interacting with Supabase Edge Functions
 import { supabase } from './supabase';
-import bcrypt from 'bcryptjs';
-
 interface ApiResponse<T = any> {
   data?: T;
   error?: string;
@@ -50,7 +48,7 @@ class ApiClient {
     }
   }
 
-  // Fallback method for direct Supabase queries when Edge Functions fail
+  // Fallback method for direct Supabase queries when Edge Functions fail (products only)
   private async directQuery(table: string, options: any = {}): Promise<any> {
     try {
       console.log(`Using direct Supabase query for ${table}`);
@@ -87,53 +85,6 @@ class ApiClient {
     } catch (error) {
       console.error('Direct query failed:', error);
       return { error: error instanceof Error ? error.message : 'Query failed' };
-    }
-  }
-
-  // Direct login method using Supabase client
-  private async directLogin(username: string, password: string): Promise<any> {
-    try {
-      console.log('Using direct login for username:', username);
-      
-      // Get user by username
-      const { data: user, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('username', username)
-        .maybeSingle();
-      
-      if (error) {
-        console.error('Error fetching user:', error);
-        return { error: 'Database error' };
-      }
-      
-      if (!user) {
-        console.log('User not found');
-        return { error: 'Invalid username or password' };
-      }
-      
-      console.log('Comparing passwords...');
-      console.log('Input password hash:', hashedPassword);
-      console.log('Stored password hash:', user.password_hash);
-      
-      // Compare hashed passwords
-      if (hashedPassword !== user.password_hash) {
-        console.log('Password mismatch');
-        return { error: 'Invalid username or password' };
-      }
-      
-      console.log('Login successful');
-      
-      // Remove password hash from response
-      const { password_hash, ...userWithoutPassword } = user;
-      
-      return { 
-        data: userWithoutPassword,
-        message: 'Login successful'
-      };
-    } catch (error) {
-      console.error('Direct login error:', error);
-      return { error: 'Login failed' };
     }
   }
 
@@ -518,33 +469,20 @@ class ApiClient {
       try {
         console.log('Calling users/login Edge Function with:', credentials.username);
         
-        try {
-          const result = await this.request('users/login', {
-            method: 'POST',
-            body: JSON.stringify(credentials),
-          });
-          
-          return {
-            data: result.data,
-            error: result.error,
-            message: result.message
-          };
-        } catch (edgeFunctionError) {
-          console.warn('Edge Function failed, using direct login:', edgeFunctionError);
-          
-          // Fallback to direct login
-          const result = await this.directLogin(credentials.username, credentials.password);
-          
-          return {
-            data: result.data,
-            error: result.error,
-            message: result.message
-          };
-        }
+        const result = await this.request('users/login', {
+          method: 'POST',
+          body: JSON.stringify(credentials),
+        });
+        
+        return {
+          data: result.data,
+          error: result.error,
+          message: result.message
+        };
       } catch (error) {
         console.error('Login API error:', error);
         return { 
-          error: error instanceof Error ? error.message : 'Failed to login'
+          error: error instanceof Error ? error.message : 'Authentication service unavailable'
         };
       }
     },

@@ -1,9 +1,35 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Validate environment variables
+if (!supabaseUrl || supabaseUrl === 'https://your-project.supabase.co') {
+  console.error('VITE_SUPABASE_URL is not configured. Please set it in your .env file.');
+}
+
+if (!supabaseAnonKey || supabaseAnonKey === 'your-anon-key') {
+  console.error('VITE_SUPABASE_ANON_KEY is not configured. Please set it in your .env file.');
+}
+
+// Use fallback values only for development to prevent crashes
+const finalUrl = supabaseUrl && supabaseUrl !== 'https://your-project.supabase.co' 
+  ? supabaseUrl 
+  : 'https://placeholder.supabase.co';
+
+const finalKey = supabaseAnonKey && supabaseAnonKey !== 'your-anon-key' 
+  ? supabaseAnonKey 
+  : 'placeholder-key';
+
+export const supabase = createClient(finalUrl, finalKey);
+
+// Export configuration status for other modules to check
+export const isSupabaseConfigured = !!(
+  supabaseUrl && 
+  supabaseAnonKey && 
+  supabaseUrl !== 'https://your-project.supabase.co' && 
+  supabaseAnonKey !== 'your-anon-key'
+);
 
 export type Database = {
   public: {

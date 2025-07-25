@@ -1,5 +1,5 @@
 // API client for interacting with Supabase Edge Functions
-import { supabase } from './supabase';
+import { supabase, isSupabaseConfigured } from './supabase';
 interface ApiResponse<T = any> {
   data?: T;
   error?: string;
@@ -11,12 +11,18 @@ interface ApiResponse<T = any> {
 class ApiClient {
   private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
     try {
+      // Check if Supabase is properly configured
+      if (!isSupabaseConfigured) {
+        throw new Error('Supabase is not properly configured. Please check your environment variables.');
+      }
+      
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       
-      if (!supabaseUrl || !supabaseKey) {
-        console.warn('Supabase environment variables not configured, using fallback');
-        throw new Error('Environment variables not configured');
+      if (!supabaseUrl || !supabaseKey || 
+          supabaseUrl === 'https://your-project.supabase.co' || 
+          supabaseKey === 'your-anon-key') {
+        throw new Error('Supabase environment variables are not properly configured. Please update your .env file with actual Supabase credentials.');
       }
 
       const url = `${supabaseUrl}/functions/v1/${endpoint}`;

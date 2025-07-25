@@ -90,14 +90,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .from('users')
         .select('*')
         .eq('username', username)
-        .single();
+        .maybeSingle();
 
       if (userError) {
-        if (userError.code === 'PGRST116') {
-          setError('Tên đăng nhập hoặc mật khẩu không đúng');
-          return false;
-        }
         setError('Lỗi kết nối cơ sở dữ liệu');
+        return false;
+      }
+
+      if (!userData) {
+        setError('Tên đăng nhập hoặc mật khẩu không đúng');
         return false;
       }
 

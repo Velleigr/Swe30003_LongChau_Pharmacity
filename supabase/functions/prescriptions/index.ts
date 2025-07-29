@@ -35,7 +35,7 @@ const PrescriptionController = {
         .from('prescriptions')
         .select(`
           *,
-          users!prescriptions_user_id_fkey (
+          users:users!prescriptions_user_id_fkey (
             full_name,
             email,
             phone
@@ -92,7 +92,7 @@ const PrescriptionController = {
         .from('prescriptions')
         .select(`
           *,
-          users!prescriptions_user_id_fkey (
+          users:users!prescriptions_user_id_fkey (
             full_name,
             email,
             phone,

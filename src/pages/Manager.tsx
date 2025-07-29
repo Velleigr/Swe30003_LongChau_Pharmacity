@@ -187,18 +187,18 @@ const Manager: React.FC = () => {
   const generatePDFReport = () => {
     const doc = new jsPDF();
     
-    // Set font to support Vietnamese characters
-    doc.setFont('helvetica');
+    // Set font to Arial which supports both English and Vietnamese characters
+    doc.setFont('arial', 'normal');
     
     // Header
     doc.setFontSize(20);
-    doc.text('BAO CAO TONG HOP - LONG CHAU PHARMACY', 20, 20);
+    doc.text('COMPREHENSIVE REPORT - LONG CHAU PHARMACY', 20, 20);
     
     // Report info
     doc.setFontSize(12);
-    doc.text(`Nguoi tao: ${user?.full_name || user?.username}`, 20, 35);
-    doc.text(`Ngay xuat: ${new Date().toLocaleDateString('vi-VN')} ${new Date().toLocaleTimeString('vi-VN')}`, 20, 45);
-    doc.text(`Thoi gian: ${orders.length > 0 ? `${new Date(orders[orders.length - 1].created_at).toLocaleDateString('vi-VN')} - ${new Date(orders[0].created_at).toLocaleDateString('vi-VN')}` : 'Khong co du lieu'}`, 20, 55);
+    doc.text(`Created by: ${user?.full_name || user?.username}`, 20, 35);
+    doc.text(`Export date: ${new Date().toLocaleDateString('en-US')} ${new Date().toLocaleTimeString('en-US')}`, 20, 45);
+    doc.text(`Period: ${orders.length > 0 ? `${new Date(orders[orders.length - 1].created_at).toLocaleDateString('en-US')} - ${new Date(orders[0].created_at).toLocaleDateString('en-US')}` : 'No data available'}`, 20, 55);
     
     // Executive Summary - Use actual order data
     const actualTotalRevenue = orders.reduce((sum, order) => sum + order.total_amount, 0);
@@ -213,14 +213,14 @@ const Manager: React.FC = () => {
     const avgDailyOrders = uniqueDays > 0 ? actualTotalOrders / uniqueDays : 0;
     
     doc.setFontSize(14);
-    doc.text('1. TONG QUAN KINH DOANH', 20, 75);
+    doc.text('1. BUSINESS OVERVIEW', 20, 75);
     doc.setFontSize(12);
-    doc.text(`• Tong doanh thu: ${actualTotalRevenue.toLocaleString('vi-VN')}d`, 25, 90);
-    doc.text(`• Tong don hang: ${actualTotalOrders.toLocaleString('vi-VN')} don`, 25, 100);
-    doc.text(`• Tong khach hang: ${uniqueCustomers.toLocaleString('vi-VN')} khach`, 25, 110);
-    doc.text(`• Gia tri don hang TB: ${avgOrderValue.toLocaleString('vi-VN')}d`, 25, 120);
-    doc.text(`• Doanh thu TB/ngay: ${avgDailyRevenue.toLocaleString('vi-VN')}d`, 25, 130);
-    doc.text(`• Don hang TB/ngay: ${avgDailyOrders.toFixed(1)} don`, 25, 140);
+    doc.text(`• Total Revenue: $${actualTotalRevenue.toLocaleString('en-US')}`, 25, 90);
+    doc.text(`• Total Orders: ${actualTotalOrders.toLocaleString('en-US')} orders`, 25, 100);
+    doc.text(`• Total Customers: ${uniqueCustomers.toLocaleString('en-US')} customers`, 25, 110);
+    doc.text(`• Average Order Value: $${avgOrderValue.toLocaleString('en-US')}`, 25, 120);
+    doc.text(`• Daily Average Revenue: $${avgDailyRevenue.toLocaleString('en-US')}`, 25, 130);
+    doc.text(`• Daily Average Orders: ${avgDailyOrders.toFixed(1)} orders`, 25, 140);
     
     // Order Status Analysis
     const statusCounts = orders.reduce((acc, order) => {
@@ -229,19 +229,19 @@ const Manager: React.FC = () => {
     }, {} as Record<string, number>);
     
     doc.setFontSize(14);
-    doc.text('2. PHAN TICH TRANG THAI DON HANG', 20, 160);
+    doc.text('2. ORDER STATUS ANALYSIS', 20, 160);
     doc.setFontSize(12);
     let yPos = 175;
     Object.entries(statusCounts).forEach(([status, count]) => {
       const percentage = ((count / actualTotalOrders) * 100).toFixed(1);
-      const statusVN = status === 'pending' ? 'Cho xu ly' :
-                      status === 'confirmed' ? 'Da xac nhan' :
-                      status === 'preparing' ? 'Dang chuan bi' :
-                      status === 'packed' ? 'Da dong goi' :
-                      status === 'shipped' ? 'Dang giao hang' :
-                      status === 'delivered' ? 'Da giao hang' :
-                      status === 'cancelled' ? 'Da huy' : status;
-      doc.text(`• ${statusVN}: ${count} don (${percentage}%)`, 25, yPos);
+      const statusEN = status === 'pending' ? 'Pending' :
+                      status === 'confirmed' ? 'Confirmed' :
+                      status === 'preparing' ? 'Preparing' :
+                      status === 'packed' ? 'Packed' :
+                      status === 'shipped' ? 'Shipped' :
+                      status === 'delivered' ? 'Delivered' :
+                      status === 'cancelled' ? 'Cancelled' : status;
+      doc.text(`• ${statusEN}: ${count} orders (${percentage}%)`, 25, yPos);
       yPos += 10;
     });
     
@@ -252,24 +252,24 @@ const Manager: React.FC = () => {
     const recentRevenue = recentOrders.reduce((sum, order) => sum + order.total_amount, 0);
     
     doc.setFontSize(14);
-    doc.text('3. PHAN TICH HIEU SUAT 7 NGAY QUA', 20, yPos + 10);
+    doc.text('3. LAST 7 DAYS PERFORMANCE', 20, yPos + 10);
     doc.setFontSize(12);
-    doc.text(`• Don hang 7 ngay qua: ${recentOrders.length} don`, 25, yPos + 25);
-    doc.text(`• Doanh thu 7 ngay qua: ${recentRevenue.toLocaleString('vi-VN')}d`, 25, yPos + 35);
-    doc.text(`• TB don hang/ngay: ${(recentOrders.length / 7).toFixed(1)} don`, 25, yPos + 45);
+    doc.text(`• Orders last 7 days: ${recentOrders.length} orders`, 25, yPos + 25);
+    doc.text(`• Revenue last 7 days: $${recentRevenue.toLocaleString('en-US')}`, 25, yPos + 35);
+    doc.text(`• Average orders/day: ${(recentOrders.length / 7).toFixed(1)} orders`, 25, yPos + 45);
     
     // New page for detailed data
     doc.addPage();
     doc.setFontSize(14);
-    doc.text('4. CHI TIET DON HANG GAN DAY', 20, 20);
+    doc.text('4. RECENT ORDER DETAILS', 20, 20);
     
     let yPosition = 40;
     doc.setFontSize(10);
-    doc.text('Ma Don', 20, yPosition);
-    doc.text('Khach Hang', 60, yPosition);
-    doc.text('Tong Tien', 110, yPosition);
-    doc.text('Trang Thai', 150, yPosition);
-    doc.text('Ngay Tao', 180, yPosition);
+    doc.text('Order ID', 20, yPosition);
+    doc.text('Customer', 60, yPosition);
+    doc.text('Total', 110, yPosition);
+    doc.text('Status', 150, yPosition);
+    doc.text('Date', 180, yPosition);
     yPosition += 10;
     
     // Draw line
@@ -277,22 +277,22 @@ const Manager: React.FC = () => {
     
     orders.slice(0, 25).forEach((order, index) => {
       const orderId = order.id.slice(0, 8);
-      const customerName = order.users.full_name || 'Khach hang';
-      const amount = `${order.total_amount.toLocaleString('vi-VN')}d`;
-      const statusVN = order.status === 'pending' ? 'Cho xu ly' :
-                      order.status === 'confirmed' ? 'Da xac nhan' :
-                      order.status === 'preparing' ? 'Dang chuan bi' :
-                      order.status === 'packed' ? 'Da dong goi' :
-                      order.status === 'shipped' ? 'Dang giao hang' :
-                      order.status === 'delivered' ? 'Da giao hang' :
-                      order.status === 'cancelled' ? 'Da huy' : order.status;
-      const date = new Date(order.created_at).toLocaleDateString('vi-VN');
+      const customerName = order.users.full_name || 'Customer';
+      const amount = `$${order.total_amount.toLocaleString('en-US')}`;
+      const statusEN = order.status === 'pending' ? 'Pending' :
+                      order.status === 'confirmed' ? 'Confirmed' :
+                      order.status === 'preparing' ? 'Preparing' :
+                      order.status === 'packed' ? 'Packed' :
+                      order.status === 'shipped' ? 'Shipped' :
+                      order.status === 'delivered' ? 'Delivered' :
+                      order.status === 'cancelled' ? 'Cancelled' : order.status;
+      const date = new Date(order.created_at).toLocaleDateString('en-US');
       
       doc.setFontSize(8);
       doc.text(orderId, 20, yPosition);
       doc.text(customerName.length > 15 ? customerName.substring(0, 15) + '...' : customerName, 60, yPosition);
       doc.text(amount, 110, yPosition);
-      doc.text(statusVN, 150, yPosition);
+      doc.text(statusEN, 150, yPosition);
       doc.text(date, 180, yPosition);
       yPosition += 10;
       
@@ -308,24 +308,24 @@ const Manager: React.FC = () => {
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.text(`Trang ${i}/${pageCount} - He Thong Quan Ly Nha Thuoc Long Chau`, 20, 285);
-      doc.text(`Bao cao tu dong tao vao ${new Date().toLocaleString('vi-VN')}`, 20, 290);
+      doc.text(`Page ${i}/${pageCount} - Long Chau Pharmacy Management System`, 20, 285);
+      doc.text(`Report generated on ${new Date().toLocaleString('en-US')}`, 20, 290);
     }
     
-    const fileName = `bao-cao-long-chau-${new Date().toISOString().split('T')[0]}.pdf`;
+    const fileName = `long-chau-report-${new Date().toISOString().split('T')[0]}.pdf`;
     doc.save(fileName);
   };
 
   const generateCustomerReport = () => {
     const doc = new jsPDF();
     
-    doc.setFont('helvetica');
+    doc.setFont('arial', 'normal');
     doc.setFontSize(20);
-    doc.text('BAO CAO KHACH HANG - LONG CHAU', 20, 20);
+    doc.text('CUSTOMER REPORT - LONG CHAU', 20, 20);
     
     doc.setFontSize(12);
-    doc.text(`Nguoi tao: ${user?.full_name || user?.username}`, 20, 35);
-    doc.text(`Ngay xuat: ${new Date().toLocaleDateString('vi-VN')}`, 20, 45);
+    doc.text(`Created by: ${user?.full_name || user?.username}`, 20, 35);
+    doc.text(`Export date: ${new Date().toLocaleDateString('en-US')}`, 20, 45);
     
     // Use actual order data for customer analysis
     const uniqueCustomers = new Set(orders.map(order => order.user_id)).size;
@@ -345,26 +345,26 @@ const Manager: React.FC = () => {
     const topCustomerInfo = orders.find(order => order.user_id === topCustomer.id)?.users;
     
     doc.setFontSize(14);
-    doc.text('THONG KE KHACH HANG', 20, 65);
+    doc.text('CUSTOMER STATISTICS', 20, 65);
     doc.setFontSize(12);
-    doc.text(`• Tong so khach hang: ${uniqueCustomers} khach`, 25, 80);
-    doc.text(`• Tong so don hang: ${totalOrdersCount} don`, 25, 90);
-    doc.text(`• TB don hang/khach: ${avgOrdersPerCustomer.toFixed(1)} don`, 25, 100);
-    doc.text(`• Khach hang tich cuc nhat: ${topCustomerInfo?.full_name || 'N/A'} (${topCustomer.count} don)`, 25, 110);
+    doc.text(`• Total customers: ${uniqueCustomers} customers`, 25, 80);
+    doc.text(`• Total orders: ${totalOrdersCount} orders`, 25, 90);
+    doc.text(`• Average orders per customer: ${avgOrdersPerCustomer.toFixed(1)} orders`, 25, 100);
+    doc.text(`• Most active customer: ${topCustomerInfo?.full_name || 'N/A'} (${topCustomer.count} orders)`, 25, 110);
     
-    doc.save(`bao-cao-khach-hang-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`customer-report-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const generateTrendReport = () => {
     const doc = new jsPDF();
     
-    doc.setFont('helvetica');
+    doc.setFont('arial', 'normal');
     doc.setFontSize(20);
-    doc.text('BAO CAO XU HUONG - LONG CHAU', 20, 20);
+    doc.text('TREND REPORT - LONG CHAU', 20, 20);
     
     doc.setFontSize(12);
-    doc.text(`Nguoi tao: ${user?.full_name || user?.username}`, 20, 35);
-    doc.text(`Ngay xuat: ${new Date().toLocaleDateString('vi-VN')}`, 20, 45);
+    doc.text(`Created by: ${user?.full_name || user?.username}`, 20, 35);
+    doc.text(`Export date: ${new Date().toLocaleDateString('en-US')}`, 20, 45);
     
     // Calculate trends from actual orders
     const now = new Date();
@@ -384,15 +384,15 @@ const Manager: React.FC = () => {
     const orderGrowth = previousOrders.length > 0 ? ((recentOrders.length - previousOrders.length) / previousOrders.length * 100).toFixed(1) : '0';
     
     doc.setFontSize(14);
-    doc.text('PHAN TICH XU HUONG 7 NGAY', 20, 65);
+    doc.text('7-DAY TREND ANALYSIS', 20, 65);
     doc.setFontSize(12);
-    doc.text(`• Tang truong doanh thu: ${revenueGrowth}%`, 25, 80);
-    doc.text(`• Tang truong don hang: ${orderGrowth}%`, 25, 90);
-    doc.text(`• 7 ngay qua: ${recentOrders.length} don, ${recentRevenue.toLocaleString('vi-VN')}d`, 25, 100);
-    doc.text(`• 7 ngay truoc: ${previousOrders.length} don, ${previousRevenue.toLocaleString('vi-VN')}d`, 25, 110);
-    doc.text(`• Danh gia: ${parseFloat(revenueGrowth) > 5 ? 'Tang truong manh' : parseFloat(revenueGrowth) > 0 ? 'Tang truong on dinh' : 'Can cai thien'}`, 25, 120);
+    doc.text(`• Revenue growth: ${revenueGrowth}%`, 25, 80);
+    doc.text(`• Order growth: ${orderGrowth}%`, 25, 90);
+    doc.text(`• Last 7 days: ${recentOrders.length} orders, $${recentRevenue.toLocaleString('en-US')}`, 25, 100);
+    doc.text(`• Previous 7 days: ${previousOrders.length} orders, $${previousRevenue.toLocaleString('en-US')}`, 25, 110);
+    doc.text(`• Assessment: ${parseFloat(revenueGrowth) > 5 ? 'Strong growth' : parseFloat(revenueGrowth) > 0 ? 'Stable growth' : 'Needs improvement'}`, 25, 120);
     
-    doc.save(`bao-cao-xu-huong-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`trend-report-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   // Login screen

@@ -150,10 +150,10 @@ const Cart: React.FC = () => {
                 Tiếp tục mua sắm
               </Link>
               <Link
-                to={`/order/details/${orderId}`}
+                to={`/order/tracking/${orderId}`}
                 className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-200 transition-colors"
               >
-                Xem chi tiết đơn hàng
+                Theo dõi đơn hàng
               </Link>
             </div>
           </motion.div>

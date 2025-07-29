@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Navigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import html2canvas from 'html2canvas';
@@ -20,6 +20,8 @@ import {
   FileText,
   TrendingDown,
   Users2,
+  ShoppingBag,
+  CreditCard
 } from 'lucide-react';
 
 interface SalesAnalytics {
@@ -31,6 +33,29 @@ interface SalesAnalytics {
   popular_category: string | null;
 }
 
+interface Order {
+  id: string;
+  user_id: string;
+  total_amount: number;
+  status: string;
+  delivery_address: string | null;
+  created_at: string;
+  updated_at: string;
+  order_items: Array<{
+    id: string;
+    quantity: number;
+    price: number;
+    products: {
+      name: string;
+    };
+  }>;
+  users: {
+    full_name: string | null;
+    email: string;
+    phone: string | null;
+  };
+}
+
 interface LoginForm {
   username: string;
   password: string;
@@ -40,6 +65,9 @@ const Manager: React.FC = () => {
   const { user, login } = useAuth();
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState<SalesAnalytics[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [totalOrders, setTotalOrders] = useState(0);
+  const [totalRevenue, setTotalRevenue] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginError, setLoginError] = useState('');
   const [loginForm, setLoginForm] = useState<LoginForm>({
@@ -51,6 +79,7 @@ const Manager: React.FC = () => {
     if (user && user.role === 'manager') {
       setIsAuthenticated(true);
       fetchAnalytics();
+      fetchOrders();
     } else {
       setLoading(false);
     }
@@ -84,6 +113,42 @@ const Manager: React.FC = () => {
     } catch (error) {
       console.error('Error fetching analytics:', error);
       setAnalytics([]);
+    }
+  };
+
+  const fetchOrders = async () => {
+    try {
+      // Fetch recent orders for all users (manager can see all)
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseKey) {
+        console.error('Supabase not configured');
+        return;
+      }
+
+      const response = await fetch(`${supabaseUrl}/rest/v1/orders?select=*,order_items(*,products(name)),users(full_name,email,phone)&order=created_at.desc&limit=50`, {
+        headers: {
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      setOrders(data || []);
+      
+      // Calculate totals
+      const total = data.reduce((sum: number, order: Order) => sum + order.total_amount, 0);
+      setTotalRevenue(total);
+      setTotalOrders(data.length);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -103,6 +168,7 @@ const Manager: React.FC = () => {
           if (userData.role === 'manager') {
             setIsAuthenticated(true);
             fetchAnalytics();
+            fetchOrders();
           } else {
             setLoginError('Bạn không có quyền truy cập trang này');
           }
@@ -372,9 +438,8 @@ const Manager: React.FC = () => {
   }
 
   const totalSales = analytics.reduce((sum, item) => sum + item.total_sales, 0);
-  const totalOrders = analytics.reduce((sum, item) => sum + item.total_orders, 0);
   const totalCustomers = analytics.reduce((sum, item) => sum + item.total_customers, 0);
-  const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+  const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -411,9 +476,9 @@ const Manager: React.FC = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Tổng doanh thu</p>
+                <p className="text-sm text-gray-600 mb-1">Doanh thu thực tế</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {totalSales.toLocaleString()}đ
+                  {totalRevenue.toLocaleString()}đ
                 </p>
               </div>
               <div className="p-3 bg-green-100 rounded-full">
@@ -430,13 +495,13 @@ const Manager: React.FC = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Tổng đơn hàng</p>
+                <p className="text-sm text-gray-600 mb-1">Đơn hàng thực tế</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {totalOrders.toLocaleString()}
                 </p>
               </div>
               <div className="p-3 bg-blue-100 rounded-full">
-                <Package className="w-6 h-6 text-blue-600" />
+                <ShoppingBag className="w-6 h-6 text-blue-600" />
               </div>
             </div>
           </motion.div>
@@ -474,7 +539,7 @@ const Manager: React.FC = () => {
                 </p>
               </div>
               <div className="p-3 bg-orange-100 rounded-full">
-                <TrendingUp className="w-6 h-6 text-orange-600" />
+                <CreditCard className="w-6 h-6 text-orange-600" />
               </div>
             </div>
           </motion.div>
@@ -482,7 +547,7 @@ const Manager: React.FC = () => {
 
         {/* Charts and Analytics */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Sales Chart */}
+          {/* Recent Orders */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -490,29 +555,42 @@ const Manager: React.FC = () => {
             className="bg-white rounded-xl shadow-lg p-6"
           >
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Doanh thu theo ngày</h2>
-              <BarChart3 className="w-6 h-6 text-blue-600" />
+              <h2 className="text-xl font-bold text-gray-900">Đơn hàng gần đây</h2>
+              <ShoppingBag className="w-6 h-6 text-blue-600" />
             </div>
             
             <div className="space-y-4">
-              {analytics.slice(0, 7).map((item, index) => (
-                <div key={item.id} className="flex items-center justify-between">
+              {orders.slice(0, 5).map((order) => (
+                <div key={order.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                   <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Calendar className="w-4 h-4 text-blue-600" />
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Package className="w-5 h-5 text-blue-600" />
                     </div>
                     <div>
-                      <p className="font-medium text-gray-900">
-                        {new Date(item.date).toLocaleDateString('vi-VN')}
+                      <p className="font-semibold text-gray-900">
+                        {order.users.full_name || 'Khách hàng'}
                       </p>
                       <p className="text-sm text-gray-600">
-                        {item.total_orders} đơn hàng
+                        {order.order_items.length} sản phẩm • {new Date(order.created_at).toLocaleDateString('vi-VN')}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-gray-900">
-                      {item.total_sales.toLocaleString()}đ
+                    <p className="font-bold text-blue-600">
+                      {order.total_amount.toLocaleString()}đ
+                    </p>
+                    <p className={`text-xs px-2 py-1 rounded-full ${
+                      order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                      order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                      'bg-blue-100 text-blue-800'
+                    }`}>
+                      {order.status === 'pending' ? 'Chờ xử lý' :
+                       order.status === 'confirmed' ? 'Đã xác nhận' :
+                       order.status === 'preparing' ? 'Đang chuẩn bị' :
+                       order.status === 'packed' ? 'Đã đóng gói' :
+                       order.status === 'shipped' ? 'Đang giao' :
+                       order.status === 'delivered' ? 'Đã giao' :
+                       order.status === 'cancelled' ? 'Đã hủy' : order.status}
                     </p>
                   </div>
                 </div>
@@ -520,7 +598,7 @@ const Manager: React.FC = () => {
             </div>
           </motion.div>
 
-          {/* Category Analysis */}
+          {/* Sales Analytics */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -528,45 +606,43 @@ const Manager: React.FC = () => {
             className="bg-white rounded-xl shadow-lg p-6"
           >
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Danh mục phổ biến</h2>
-              <Eye className="w-6 h-6 text-purple-600" />
+              <h2 className="text-xl font-bold text-gray-900">Phân tích doanh thu</h2>
+              <BarChart3 className="w-6 h-6 text-purple-600" />
             </div>
             
             <div className="space-y-4">
-              {['Heart', 'Skin'].map((category, index) => {
-                const categoryData = analytics.filter(item => item.popular_category === category);
-                const categoryTotal = categoryData.reduce((sum, item) => sum + item.total_sales, 0);
-                const percentage = totalSales > 0 ? (categoryTotal / totalSales) * 100 : 0;
-                
-                return (
-                  <div key={category} className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-gray-900">
-                        {category === 'Heart' ? 'Tim mạch' : 'Da liễu'}
-                      </span>
-                      <span className="text-sm text-gray-600">
-                        {percentage.toFixed(1)}%
-                      </span>
+              {analytics.slice(0, 7).map((item, index) => (
+                <div key={item.id} className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                      <Calendar className="w-4 h-4 text-purple-600" />
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full ${
-                          category === 'Heart' ? 'bg-red-500' : 'bg-blue-500'
-                        }`}
-                        style={{ width: `${percentage}%` }}
-                      />
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {new Date(item.date).toLocaleDateString('vi-VN')}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {item.total_orders} đơn hàng • {item.total_customers} khách
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-600">
-                      {categoryTotal.toLocaleString()}đ
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-gray-900">
+                      {item.total_sales.toLocaleString()}đ
+                    </p>
+                    <p className={`text-xs px-2 py-1 rounded-full ${
+                      item.popular_category === 'Heart' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+                    }`}>
+                      {item.popular_category === 'Heart' ? 'Tim mạch' : 'Da liễu'}
                     </p>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           </motion.div>
         </div>
 
-        {/* Recent Activity */}
+        {/* All Orders Table */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -574,43 +650,64 @@ const Manager: React.FC = () => {
           className="bg-white rounded-xl shadow-lg p-6 mt-8"
         >
           <h2 className="text-xl font-bold text-gray-900 mb-6">
-            Hoạt động gần đây
+            Tất cả đơn hàng
           </h2>
           
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Ngày</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Doanh thu</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Đơn hàng</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Mã đơn</th>
                   <th className="text-left py-3 px-4 font-medium text-gray-700">Khách hàng</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Danh mục phổ biến</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Sản phẩm</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Tổng tiền</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Trạng thái</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Ngày đặt</th>
                 </tr>
               </thead>
               <tbody>
-                {analytics.slice(0, 10).map((item) => (
-                  <tr key={item.id} className="border-b border-gray-100 hover:bg-gray-50">
+                {orders.slice(0, 20).map((order) => (
+                  <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="py-3 px-4 text-gray-900">
-                      {new Date(item.date).toLocaleDateString('vi-VN')}
+                      <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                        {order.id.slice(0, 8)}
+                      </code>
+                    </td>
+                    <td className="py-3 px-4 text-gray-900">
+                      <div>
+                        <p className="font-medium">{order.users.full_name || 'Khách hàng'}</p>
+                        <p className="text-sm text-gray-500">{order.users.email}</p>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 text-gray-900">
+                      <div>
+                        <p className="font-medium">{order.order_items.length} sản phẩm</p>
+                        <p className="text-sm text-gray-500">
+                          {order.order_items.slice(0, 2).map(item => item.products.name).join(', ')}
+                          {order.order_items.length > 2 && '...'}
+                        </p>
+                      </div>
                     </td>
                     <td className="py-3 px-4 text-gray-900 font-medium">
-                      {item.total_sales.toLocaleString()}đ
-                    </td>
-                    <td className="py-3 px-4 text-gray-900">
-                      {item.total_orders}
-                    </td>
-                    <td className="py-3 px-4 text-gray-900">
-                      {item.total_customers}
+                      {order.total_amount.toLocaleString()}đ
                     </td>
                     <td className="py-3 px-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        item.popular_category === 'Heart'
-                          ? 'bg-red-100 text-red-800'
-                          : 'bg-blue-100 text-blue-800'
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                        order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                        order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                        'bg-blue-100 text-blue-800'
                       }`}>
-                        {item.popular_category === 'Heart' ? 'Tim mạch' : 'Da liễu'}
+                        {order.status === 'pending' ? 'Chờ xử lý' :
+                         order.status === 'confirmed' ? 'Đã xác nhận' :
+                         order.status === 'preparing' ? 'Đang chuẩn bị' :
+                         order.status === 'packed' ? 'Đã đóng gói' :
+                         order.status === 'shipped' ? 'Đang giao' :
+                         order.status === 'delivered' ? 'Đã giao' :
+                         order.status === 'cancelled' ? 'Đã hủy' : order.status}
                       </span>
+                    </td>
+                    <td className="py-3 px-4 text-gray-900">
+                      {new Date(order.created_at).toLocaleDateString('vi-VN')}
                     </td>
                   </tr>
                 ))}

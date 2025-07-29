@@ -10,6 +10,7 @@ import Prescription from './pages/Prescription';
 import Order from './pages/Order';
 import Cart from './pages/Cart';
 import OrderDetails from './pages/OrderDetails';
+import OrderTracking from './pages/OrderTracking';
 import Manager from './pages/Manager';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -28,6 +29,7 @@ function App() {
                 <Route path="/order" element={<Order />} />
                 <Route path="/order/cart" element={<Cart />} />
                 <Route path="/order/details/:id" element={<OrderDetails />} />
+                <Route path="/order/tracking/:id" element={<OrderTracking />} />
                 <Route path="/manager" element={<Manager />} />
               </Routes>
             </main>

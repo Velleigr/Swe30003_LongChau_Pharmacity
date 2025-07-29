@@ -189,13 +189,13 @@ const Manager: React.FC = () => {
     
     // Header
     doc.setFontSize(20);
-    doc.text('BÁO CÁO TỔNG HỢP - LONG CHÂU', 20, 20);
+    doc.text('COMPREHENSIVE REPORT - LONG CHAU', 20, 20);
     
     // Report info
     doc.setFontSize(12);
-    doc.text(`Người tạo: ${user?.full_name || user?.username}`, 20, 35);
-    doc.text(`Ngày xuất: ${new Date().toLocaleDateString('vi-VN')} ${new Date().toLocaleTimeString('vi-VN')}`, 20, 45);
-    doc.text(`Thời gian báo cáo: ${analytics.length > 0 ? `${analytics[analytics.length - 1].date} - ${analytics[0].date}` : 'N/A'}`, 20, 55);
+    doc.text(`Created by: ${user?.full_name || user?.username}`, 20, 35);
+    doc.text(`Export date: ${new Date().toLocaleDateString('en-US')} ${new Date().toLocaleTimeString('en-US')}`, 20, 45);
+    doc.text(`Report period: ${analytics.length > 0 ? `${analytics[analytics.length - 1].date} - ${analytics[0].date}` : 'N/A'}`, 20, 55);
     
     // Executive Summary
     const totalSales = analytics.reduce((sum, item) => sum + item.total_sales, 0);
@@ -205,13 +205,13 @@ const Manager: React.FC = () => {
     const avgDailySales = analytics.length > 0 ? totalSales / analytics.length : 0;
     
     doc.setFontSize(14);
-    doc.text('1. TỔNG QUAN KINH DOANH', 20, 75);
+    doc.text('1. BUSINESS OVERVIEW', 20, 75);
     doc.setFontSize(12);
-    doc.text(`• Tổng doanh thu: ${totalSales.toLocaleString('vi-VN')}đ`, 25, 90);
-    doc.text(`• Tổng đơn hàng: ${totalOrders.toLocaleString('vi-VN')} đơn`, 25, 100);
-    doc.text(`• Tổng khách hàng: ${totalCustomers.toLocaleString('vi-VN')} khách`, 25, 110);
-    doc.text(`• Giá trị trung bình/đơn: ${avgOrderValue.toLocaleString('vi-VN')}đ`, 25, 120);
-    doc.text(`• Doanh thu trung bình/ngày: ${avgDailySales.toLocaleString('vi-VN')}đ`, 25, 130);
+    doc.text(`• Total revenue: $${totalSales.toLocaleString('en-US')}`, 25, 90);
+    doc.text(`• Total orders: ${totalOrders.toLocaleString('en-US')} orders`, 25, 100);
+    doc.text(`• Total customers: ${totalCustomers.toLocaleString('en-US')} customers`, 25, 110);
+    doc.text(`• Average order value: $${avgOrderValue.toLocaleString('en-US')}`, 25, 120);
+    doc.text(`• Average daily revenue: $${avgDailySales.toLocaleString('en-US')}`, 25, 130);
     
     // Category Analysis
     const heartSales = analytics.filter(item => item.popular_category === 'Heart').reduce((sum, item) => sum + item.total_sales, 0);
@@ -220,10 +220,10 @@ const Manager: React.FC = () => {
     const skinPercentage = totalSales > 0 ? (skinSales / totalSales * 100).toFixed(1) : '0';
     
     doc.setFontSize(14);
-    doc.text('2. PHÂN TÍCH DANH MỤC SẢN PHẨM', 20, 150);
+    doc.text('2. PRODUCT CATEGORY ANALYSIS', 20, 150);
     doc.setFontSize(12);
-    doc.text(`• Tim mạch: ${heartSales.toLocaleString('vi-VN')}đ (${heartPercentage}%)`, 25, 165);
-    doc.text(`• Da liễu: ${skinSales.toLocaleString('vi-VN')}đ (${skinPercentage}%)`, 25, 175);
+    doc.text(`• Heart care: $${heartSales.toLocaleString('en-US')} (${heartPercentage}%)`, 25, 165);
+    doc.text(`• Skin care: $${skinSales.toLocaleString('en-US')} (${skinPercentage}%)`, 25, 175);
     
     // Trend Analysis
     const recentSales = analytics.slice(0, 7).reduce((sum, item) => sum + item.total_sales, 0);
@@ -231,31 +231,31 @@ const Manager: React.FC = () => {
     const growthRate = olderSales > 0 ? ((recentSales - olderSales) / olderSales * 100).toFixed(1) : '0';
     
     doc.setFontSize(14);
-    doc.text('3. PHÂN TÍCH XU HƯỚNG', 20, 195);
+    doc.text('3. TREND ANALYSIS', 20, 195);
     doc.setFontSize(12);
-    doc.text(`• Tăng trưởng 7 ngày gần nhất: ${growthRate}%`, 25, 210);
-    doc.text(`• Xu hướng: ${parseFloat(growthRate) > 0 ? 'Tăng trưởng tích cực' : parseFloat(growthRate) < 0 ? 'Giảm so với tuần trước' : 'Ổn định'}`, 25, 220);
+    doc.text(`• Last 7 days growth: ${growthRate}%`, 25, 210);
+    doc.text(`• Trend: ${parseFloat(growthRate) > 0 ? 'Positive growth' : parseFloat(growthRate) < 0 ? 'Decline from last week' : 'Stable'}`, 25, 220);
     
     // New page for detailed data
     doc.addPage();
     doc.setFontSize(14);
-    doc.text('4. CHI TIẾT THEO NGÀY', 20, 20);
+    doc.text('4. DAILY BREAKDOWN', 20, 20);
     
     let yPosition = 35;
     doc.setFontSize(10);
-    doc.text('Ngày', 20, yPosition);
-    doc.text('Doanh thu', 70, yPosition);
-    doc.text('Đơn hàng', 120, yPosition);
-    doc.text('Khách hàng', 160, yPosition);
+    doc.text('Date', 20, yPosition);
+    doc.text('Revenue', 70, yPosition);
+    doc.text('Orders', 120, yPosition);
+    doc.text('Customers', 160, yPosition);
     yPosition += 10;
     
     // Draw line
     doc.line(20, yPosition - 5, 190, yPosition - 5);
     
     analytics.slice(0, 20).forEach((item, index) => {
-      const date = new Date(item.date).toLocaleDateString('vi-VN');
+      const date = new Date(item.date).toLocaleDateString('en-US');
       doc.text(date, 20, yPosition);
-      doc.text(`${item.total_sales.toLocaleString('vi-VN')}đ`, 70, yPosition);
+      doc.text(`$${item.total_sales.toLocaleString('en-US')}`, 70, yPosition);
       doc.text(`${item.total_orders}`, 120, yPosition);
       doc.text(`${item.total_customers}`, 160, yPosition);
       yPosition += 12;
@@ -273,10 +273,10 @@ const Manager: React.FC = () => {
       doc.setPage(i);
       doc.setFontSize(8);
       doc.text(`Trang ${i}/${pageCount} - Long Châu Pharmacy Management System`, 20, 285);
-      doc.text(`Báo cáo được tạo tự động vào ${new Date().toLocaleString('vi-VN')}`, 20, 290);
+      doc.text(`Report generated automatically on ${new Date().toLocaleString('en-US')}`, 20, 290);
     }
     
-    const fileName = `bao-cao-long-chau-${new Date().toISOString().split('T')[0]}.pdf`;
+    const fileName = `long-chau-report-${new Date().toISOString().split('T')[0]}.pdf`;
     doc.save(fileName);
   };
 
@@ -284,11 +284,11 @@ const Manager: React.FC = () => {
     const doc = new jsPDF();
     
     doc.setFontSize(20);
-    doc.text('BÁO CÁO KHÁCH HÀNG - LONG CHÂU', 20, 20);
+    doc.text('CUSTOMER REPORT - LONG CHAU', 20, 20);
     
     doc.setFontSize(12);
-    doc.text(`Người tạo: ${user?.full_name || user?.username}`, 20, 35);
-    doc.text(`Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`, 20, 45);
+    doc.text(`Created by: ${user?.full_name || user?.username}`, 20, 35);
+    doc.text(`Export date: ${new Date().toLocaleDateString('en-US')}`, 20, 45);
     
     const totalCustomers = analytics.reduce((sum, item) => sum + item.total_customers, 0);
     const avgCustomersPerDay = analytics.length > 0 ? totalCustomers / analytics.length : 0;
@@ -296,24 +296,24 @@ const Manager: React.FC = () => {
     const avgOrdersPerCustomer = totalCustomers > 0 ? totalOrders / totalCustomers : 0;
     
     doc.setFontSize(14);
-    doc.text('THỐNG KÊ KHÁCH HÀNG', 20, 65);
+    doc.text('CUSTOMER STATISTICS', 20, 65);
     doc.setFontSize(12);
-    doc.text(`• Tổng số khách hàng: ${totalCustomers.toLocaleString('vi-VN')}`, 25, 80);
-    doc.text(`• Khách hàng trung bình/ngày: ${avgCustomersPerDay.toFixed(1)}`, 25, 90);
-    doc.text(`• Đơn hàng trung bình/khách: ${avgOrdersPerCustomer.toFixed(1)}`, 25, 100);
+    doc.text(`• Total customers: ${totalCustomers.toLocaleString('en-US')}`, 25, 80);
+    doc.text(`• Average customers per day: ${avgCustomersPerDay.toFixed(1)}`, 25, 90);
+    doc.text(`• Average orders per customer: ${avgOrdersPerCustomer.toFixed(1)}`, 25, 100);
     
-    doc.save(`bao-cao-khach-hang-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`customer-report-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const generateTrendReport = () => {
     const doc = new jsPDF();
     
     doc.setFontSize(20);
-    doc.text('BÁO CÁO XU HƯỚNG - LONG CHÂU', 20, 20);
+    doc.text('TREND REPORT - LONG CHAU', 20, 20);
     
     doc.setFontSize(12);
-    doc.text(`Người tạo: ${user?.full_name || user?.username}`, 20, 35);
-    doc.text(`Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}`, 20, 45);
+    doc.text(`Created by: ${user?.full_name || user?.username}`, 20, 35);
+    doc.text(`Export date: ${new Date().toLocaleDateString('en-US')}`, 20, 45);
     
     // Calculate trends
     const recentWeek = analytics.slice(0, 7);
@@ -328,13 +328,13 @@ const Manager: React.FC = () => {
     const ordersGrowth = previousOrders > 0 ? ((recentOrders - previousOrders) / previousOrders * 100).toFixed(1) : '0';
     
     doc.setFontSize(14);
-    doc.text('PHÂN TÍCH XU HƯỚNG 7 NGÀY', 20, 65);
+    doc.text('7-DAY TREND ANALYSIS', 20, 65);
     doc.setFontSize(12);
-    doc.text(`• Tăng trưởng doanh thu: ${salesGrowth}%`, 25, 80);
-    doc.text(`• Tăng trưởng đơn hàng: ${ordersGrowth}%`, 25, 90);
-    doc.text(`• Đánh giá: ${parseFloat(salesGrowth) > 5 ? 'Tăng trưởng mạnh' : parseFloat(salesGrowth) > 0 ? 'Tăng trưởng ổn định' : 'Cần cải thiện'}`, 25, 100);
+    doc.text(`• Revenue growth: ${salesGrowth}%`, 25, 80);
+    doc.text(`• Order growth: ${ordersGrowth}%`, 25, 90);
+    doc.text(`• Assessment: ${parseFloat(salesGrowth) > 5 ? 'Strong growth' : parseFloat(salesGrowth) > 0 ? 'Stable growth' : 'Needs improvement'}`, 25, 100);
     
-    doc.save(`bao-cao-xu-huong-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`trend-report-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   // Login screen
@@ -404,24 +404,24 @@ const Manager: React.FC = () => {
           <div className="flex space-x-3 mt-4">
                 <button
                   onClick={generatePDFReport}
-                  className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors inline-flex items-center text-sm"
+                  className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors inline-flex items-center text-sm"
                 >
                   <FileText className="w-4 h-4 mr-2" />
-                  Báo cáo tổng hợp
+                  Comprehensive Report
                 </button>
                 <button
                   onClick={generateCustomerReport}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center text-sm"
+                  className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center text-sm"
                 >
                   <Users2 className="w-4 h-4 mr-2" />
-                  Báo cáo khách hàng
+                  Customer Report
                 </button>
                 <button
                   onClick={generateTrendReport}
-                  className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center text-sm"
+                  className="bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center text-sm"
                 >
                   <TrendingDown className="w-4 h-4 mr-2" />
-                  Báo cáo xu hướng
+                  Trend Report
                 </button>
               </div>
         </div>
@@ -449,10 +449,10 @@ const Manager: React.FC = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Bảng điều khiển quản lý
+                Management Dashboard
               </h1>
               <p className="text-gray-600">
-                Tổng quan hiệu suất kinh doanh Long Châu
+                Long Chau business performance overview
               </p>
             </div>
             
@@ -461,7 +461,7 @@ const Manager: React.FC = () => {
               className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors inline-flex items-center"
             >
               <Download className="w-5 h-5 mr-2" />
-              Xuất báo cáo PDF
+              Export PDF Report
             </button>
           </div>
         </div>
@@ -476,9 +476,9 @@ const Manager: React.FC = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Doanh thu thực tế</p>
+                <p className="text-sm text-gray-600 mb-1">Actual Revenue</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {totalRevenue.toLocaleString()}đ
+                  ${totalRevenue.toLocaleString()}
                 </p>
               </div>
               <div className="p-3 bg-green-100 rounded-full">
@@ -495,7 +495,7 @@ const Manager: React.FC = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Đơn hàng thực tế</p>
+                <p className="text-sm text-gray-600 mb-1">Actual Orders</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {totalOrders.toLocaleString()}
                 </p>
@@ -514,7 +514,7 @@ const Manager: React.FC = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Tổng khách hàng</p>
+                <p className="text-sm text-gray-600 mb-1">Total Customers</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {totalCustomers.toLocaleString()}
                 </p>
@@ -533,9 +533,9 @@ const Manager: React.FC = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Giá trị TB/Đơn</p>
+                <p className="text-sm text-gray-600 mb-1">Avg Order Value</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {avgOrderValue.toLocaleString()}đ
+                  ${avgOrderValue.toLocaleString()}
                 </p>
               </div>
               <div className="p-3 bg-orange-100 rounded-full">
@@ -555,7 +555,7 @@ const Manager: React.FC = () => {
             className="bg-white rounded-xl shadow-lg p-6"
           >
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Đơn hàng gần đây</h2>
+              <h2 className="text-xl font-bold text-gray-900">Recent Orders</h2>
               <ShoppingBag className="w-6 h-6 text-blue-600" />
             </div>
             
@@ -568,16 +568,16 @@ const Manager: React.FC = () => {
                     </div>
                     <div>
                       <p className="font-semibold text-gray-900">
-                        {order.users.full_name || 'Khách hàng'}
+                        {order.users.full_name || 'Customer'}
                       </p>
                       <p className="text-sm text-gray-600">
-                        {order.order_items.length} sản phẩm • {new Date(order.created_at).toLocaleDateString('vi-VN')}
+                        {order.order_items.length} products • {new Date(order.created_at).toLocaleDateString('en-US')}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-blue-600">
-                      {order.total_amount.toLocaleString()}đ
+                      ${order.total_amount.toLocaleString()}
                     </p>
                     <p className={`text-xs px-2 py-1 rounded-full ${
                       order.status === 'delivered' ? 'bg-green-100 text-green-800' :
@@ -585,12 +585,12 @@ const Manager: React.FC = () => {
                       'bg-blue-100 text-blue-800'
                     }`}>
                       {order.status === 'pending' ? 'Chờ xử lý' :
-                       order.status === 'confirmed' ? 'Đã xác nhận' :
-                       order.status === 'preparing' ? 'Đang chuẩn bị' :
-                       order.status === 'packed' ? 'Đã đóng gói' :
-                       order.status === 'shipped' ? 'Đang giao' :
-                       order.status === 'delivered' ? 'Đã giao' :
-                       order.status === 'cancelled' ? 'Đã hủy' : order.status}
+                       order.status === 'confirmed' ? 'Confirmed' :
+                       order.status === 'preparing' ? 'Preparing' :
+                       order.status === 'packed' ? 'Packed' :
+                       order.status === 'shipped' ? 'Shipped' :
+                       order.status === 'delivered' ? 'Delivered' :
+                       order.status === 'cancelled' ? 'Cancelled' : order.status}
                     </p>
                   </div>
                 </div>
@@ -606,7 +606,7 @@ const Manager: React.FC = () => {
             className="bg-white rounded-xl shadow-lg p-6"
           >
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Phân tích doanh thu</h2>
+              <h2 className="text-xl font-bold text-gray-900">Revenue Analysis</h2>
               <BarChart3 className="w-6 h-6 text-purple-600" />
             </div>
             
@@ -619,21 +619,21 @@ const Manager: React.FC = () => {
                     </div>
                     <div>
                       <p className="font-medium text-gray-900">
-                        {new Date(item.date).toLocaleDateString('vi-VN')}
+                        {new Date(item.date).toLocaleDateString('en-US')}
                       </p>
                       <p className="text-sm text-gray-600">
-                        {item.total_orders} đơn hàng • {item.total_customers} khách
+                        {item.total_orders} orders • {item.total_customers} customers
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-gray-900">
-                      {item.total_sales.toLocaleString()}đ
+                      ${item.total_sales.toLocaleString()}
                     </p>
                     <p className={`text-xs px-2 py-1 rounded-full ${
                       item.popular_category === 'Heart' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
                     }`}>
-                      {item.popular_category === 'Heart' ? 'Tim mạch' : 'Da liễu'}
+                      {item.popular_category === 'Heart' ? 'Heart Care' : 'Skin Care'}
                     </p>
                   </div>
                 </div>
@@ -650,19 +650,19 @@ const Manager: React.FC = () => {
           className="bg-white rounded-xl shadow-lg p-6 mt-8"
         >
           <h2 className="text-xl font-bold text-gray-900 mb-6">
-            Tất cả đơn hàng
+            All Orders
           </h2>
           
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Mã đơn</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Khách hàng</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Sản phẩm</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Tổng tiền</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Trạng thái</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Ngày đặt</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Order ID</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Customer</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Products</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Total</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
+                  <th className="text-left py-3 px-4 font-medium text-gray-700">Order Date</th>
                 </tr>
               </thead>
               <tbody>
@@ -675,13 +675,13 @@ const Manager: React.FC = () => {
                     </td>
                     <td className="py-3 px-4 text-gray-900">
                       <div>
-                        <p className="font-medium">{order.users.full_name || 'Khách hàng'}</p>
+                        <p className="font-medium">{order.users.full_name || 'Customer'}</p>
                         <p className="text-sm text-gray-500">{order.users.email}</p>
                       </div>
                     </td>
                     <td className="py-3 px-4 text-gray-900">
                       <div>
-                        <p className="font-medium">{order.order_items.length} sản phẩm</p>
+                        <p className="font-medium">{order.order_items.length} products</p>
                         <p className="text-sm text-gray-500">
                           {order.order_items.slice(0, 2).map(item => item.products.name).join(', ')}
                           {order.order_items.length > 2 && '...'}
@@ -689,7 +689,7 @@ const Manager: React.FC = () => {
                       </div>
                     </td>
                     <td className="py-3 px-4 text-gray-900 font-medium">
-                      {order.total_amount.toLocaleString()}đ
+                      ${order.total_amount.toLocaleString()}
                     </td>
                     <td className="py-3 px-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
@@ -698,16 +698,16 @@ const Manager: React.FC = () => {
                         'bg-blue-100 text-blue-800'
                       }`}>
                         {order.status === 'pending' ? 'Chờ xử lý' :
-                         order.status === 'confirmed' ? 'Đã xác nhận' :
-                         order.status === 'preparing' ? 'Đang chuẩn bị' :
-                         order.status === 'packed' ? 'Đã đóng gói' :
-                         order.status === 'shipped' ? 'Đang giao' :
-                         order.status === 'delivered' ? 'Đã giao' :
-                         order.status === 'cancelled' ? 'Đã hủy' : order.status}
+                         order.status === 'confirmed' ? 'Confirmed' :
+                         order.status === 'preparing' ? 'Preparing' :
+                         order.status === 'packed' ? 'Packed' :
+                         order.status === 'shipped' ? 'Shipped' :
+                         order.status === 'delivered' ? 'Delivered' :
+                         order.status === 'cancelled' ? 'Cancelled' : order.status}
                       </span>
                     </td>
                     <td className="py-3 px-4 text-gray-900">
-                      {new Date(order.created_at).toLocaleDateString('vi-VN')}
+                      {new Date(order.created_at).toLocaleDateString('en-US')}
                     </td>
                   </tr>
                 ))}

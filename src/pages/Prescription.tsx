@@ -50,17 +50,24 @@ const Prescription: React.FC = () => {
   });
 
   const branches = [
-    { id: 'hcm-district1', name: 'Long Châu Quận 1 - TP.HCM' },
-    { id: 'hcm-district3', name: 'Long Châu Quận 3 - TP.HCM' },
-    { id: 'hcm-district5', name: 'Long Châu Quận 5 - TP.HCM' },
-    { id: 'hcm-district7', name: 'Long Châu Quận 7 - TP.HCM' },
-    { id: 'hcm-tanbinh', name: 'Long Châu Tân Bình - TP.HCM' },
-    { id: 'hcm-binhthanh', name: 'Long Châu Bình Thạnh - TP.HCM' }
+    { id: 'hcm-district1', name: 'Long Châu Quận 1 - TP.HCM', dbValue: 'hcm-district1' },
+    { id: 'hcm-district3', name: 'Long Châu Quận 3 - TP.HCM', dbValue: 'hcm-district3' },
+    { id: 'hcm-district5', name: 'Long Châu Quận 5 - TP.HCM', dbValue: 'hcm-district5' },
+    { id: 'hcm-district7', name: 'Long Châu Quận 7 - TP.HCM', dbValue: 'hcm-district7' },
+    { id: 'hcm-tanbinh', name: 'Long Châu Tân Bình - TP.HCM', dbValue: 'hcm-tanbinh' },
+    { id: 'hcm-binhthanh', name: 'Long Châu Bình Thạnh - TP.HCM', dbValue: 'hcm-binhthanh' }
   ];
 
   // Fetch pharmacists from database based on selected branch
   const fetchPharmacists = async (branchId: string) => {
     if (!branchId) {
+      setPharmacists([]);
+      return;
+    }
+
+    // Find the database value for the selected branch
+    const selectedBranch = branches.find(b => b.id === branchId);
+    if (!selectedBranch) {
       setPharmacists([]);
       return;
     }
@@ -71,13 +78,14 @@ const Prescription: React.FC = () => {
         .from('users')
         .select('id, full_name, branch')
         .eq('role', 'pharmacist')
-        .eq('branch', branchId)
+        .eq('branch', selectedBranch.dbValue)
         .order('full_name');
 
       if (error) {
         console.error('Error fetching pharmacists:', error);
         setPharmacists([]);
       } else {
+        console.log('Fetched pharmacists for branch:', selectedBranch.dbValue, data);
         setPharmacists(data || []);
       }
     } catch (error) {

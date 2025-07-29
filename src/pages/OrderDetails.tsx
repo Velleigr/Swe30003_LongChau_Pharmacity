@@ -76,7 +76,9 @@ const OrderDetails: React.FC = () => {
           setProduct(null);
           return;
         }
-        throw new Error(response.error);
+        console.error('Error fetching product:', response.error);
+        setProduct(null);
+        return;
       }
       
       setProduct(response.data);

@@ -50,6 +50,11 @@ const Footer: React.FC = () => {
                   Giỏ hàng
                 </Link>
               </li>
+              <li>
+                <Link to="/order/history" className="text-gray-400 hover:text-white transition-colors">
+                  Lịch sử đơn hàng
+                </Link>
+              </li>
             </ul>
           </div>
 

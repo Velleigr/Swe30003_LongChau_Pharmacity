@@ -150,6 +150,12 @@ const Cart: React.FC = () => {
                 Tiếp tục mua sắm
               </Link>
               <Link
+                to="/order/history"
+                className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Xem lịch sử đơn hàng
+              </Link>
+              <Link
                 to={`/order/tracking/${orderId}`}
                 className="bg-gray-100 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-200 transition-colors"
               >

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { api } from '../lib/api';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import DeliveryTracker from '../components/ui/DeliveryTracker';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -34,7 +35,8 @@ const Prescription: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [prescriptionId, setPrescriptionId] = useState<string | null>(null);
-  const [pharmacists, setPharmacists] = useState<Array<{id: string, full_name: string, branch: string}>>([]);
+  const [pharmacists, setPharmacists] = useState<Array<{id: string, full_name: string | null, branch: string | null}>>([]);
+  const [loadingPharmacists, setLoadingPharmacists] = useState(false);
   const [form, setForm] = useState<PrescriptionForm>({
     patientName: '',
     patientPhone: '',
@@ -56,37 +58,52 @@ const Prescription: React.FC = () => {
     { id: 'hcm-binhthanh', name: 'Long Châu Bình Thạnh - TP.HCM' }
   ];
 
-  const mockPharmacists = [
-    { id: '1', full_name: 'Dược sĩ Nguyễn Văn An', branch: 'hcm-district1' },
-    { id: '2', full_name: 'Dược sĩ Trần Thị Bình', branch: 'hcm-district1' },
-    { id: '3', full_name: 'Dược sĩ Lê Minh Cường', branch: 'hcm-district3' },
-    { id: '4', full_name: 'Dược sĩ Phạm Thị Dung', branch: 'hcm-district3' },
-    { id: '5', full_name: 'Dược sĩ Hoàng Văn Em', branch: 'hcm-district5' },
-    { id: '6', full_name: 'Dược sĩ Võ Thị Phương', branch: 'hcm-district5' },
-    { id: '7', full_name: 'Dược sĩ Đặng Minh Quân', branch: 'hcm-district7' },
-    { id: '8', full_name: 'Dược sĩ Bùi Thị Hoa', branch: 'hcm-district7' },
-    { id: '9', full_name: 'Dược sĩ Ngô Văn Tài', branch: 'hcm-tanbinh' },
-    { id: '10', full_name: 'Dược sĩ Lý Thị Lan', branch: 'hcm-tanbinh' },
-    { id: '11', full_name: 'Dược sĩ Trương Minh Tuấn', branch: 'hcm-binhthanh' },
-    { id: '12', full_name: 'Dược sĩ Phan Thị Mai', branch: 'hcm-binhthanh' }
-  ];
+  // Fetch pharmacists from database based on selected branch
+  const fetchPharmacists = async (branchId: string) => {
+    if (!branchId) {
+      setPharmacists([]);
+      return;
+    }
+
+    setLoadingPharmacists(true);
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, full_name, branch')
+        .eq('role', 'pharmacist')
+        .eq('branch', branchId)
+        .order('full_name');
+
+      if (error) {
+        console.error('Error fetching pharmacists:', error);
+        setPharmacists([]);
+      } else {
+        setPharmacists(data || []);
+      }
+    } catch (error) {
+      console.error('Error fetching pharmacists:', error);
+      setPharmacists([]);
+    } finally {
+      setLoadingPharmacists(false);
+    }
+  };
 
   useEffect(() => {
-    // Filter pharmacists based on selected branch
-    if (form.branch) {
-      const branchPharmacists = mockPharmacists.filter(p => p.branch === form.branch);
-      setPharmacists(branchPharmacists);
-      // Reset pharmacist selection when branch changes
-      if (form.pharmacist && !branchPharmacists.find(p => p.id === form.pharmacist)) {
-        setForm(prev => ({ ...prev, pharmacist: '' }));
-      }
-    } else {
-      setPharmacists([]);
+    // Fetch pharmacists when branch changes
+    fetchPharmacists(form.branch);
+    
+    // Reset pharmacist selection when branch changes
+    if (form.pharmacist) {
       setForm(prev => ({ ...prev, pharmacist: '' }));
     }
   }, [form.branch]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
   };
@@ -194,7 +211,7 @@ const Prescription: React.FC = () => {
                 </h4>
                 <div className="text-sm text-green-800 space-y-1">
                   <p>• Chi nhánh: {branches.find(b => b.id === form.branch)?.name}</p>
-                  <p>• Dược sĩ phụ trách: {mockPharmacists.find(p => p.id === form.pharmacist)?.full_name}</p>
+                  <p>• Dược sĩ phụ trách: {pharmacists.find(p => p.id === form.pharmacist)?.full_name}</p>
                 </div>
               </div>
               
@@ -363,7 +380,7 @@ const Prescription: React.FC = () => {
                   <select
                     name="branch"
                     value={form.branch}
-                    onChange={handleInputChange}
+                    onChange={handleSelectChange}
                     required
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
@@ -382,17 +399,24 @@ const Prescription: React.FC = () => {
                   <select
                     name="pharmacist"
                     value={form.pharmacist}
-                    onChange={handleInputChange}
+                    onChange={handleSelectChange}
                     required
-                    disabled={!form.branch}
+                    disabled={!form.branch || loadingPharmacists}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                   >
                     <option value="">
-                      {form.branch ? 'Chọn dược sĩ' : 'Vui lòng chọn chi nhánh trước'}
+                      {!form.branch 
+                        ? 'Vui lòng chọn chi nhánh trước'
+                        : loadingPharmacists 
+                        ? 'Đang tải dược sĩ...'
+                        : pharmacists.length === 0
+                        ? 'Không có dược sĩ tại chi nhánh này'
+                        : 'Chọn dược sĩ'
+                      }
                     </option>
                     {pharmacists.map((pharmacist) => (
                       <option key={pharmacist.id} value={pharmacist.id}>
-                        {pharmacist.full_name}
+                        {pharmacist.full_name || 'Dược sĩ'}
                       </option>
                     ))}
                   </select>

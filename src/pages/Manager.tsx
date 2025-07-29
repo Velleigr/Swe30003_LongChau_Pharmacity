@@ -187,78 +187,114 @@ const Manager: React.FC = () => {
   const generatePDFReport = () => {
     const doc = new jsPDF();
     
+    // Set font to support Vietnamese characters
+    doc.setFont('helvetica');
+    
     // Header
     doc.setFontSize(20);
-    doc.text('COMPREHENSIVE REPORT - LONG CHAU', 20, 20);
+    doc.text('BAO CAO TONG HOP - LONG CHAU PHARMACY', 20, 20);
     
     // Report info
     doc.setFontSize(12);
-    doc.text(`Created by: ${user?.full_name || user?.username}`, 20, 35);
-    doc.text(`Export date: ${new Date().toLocaleDateString('en-US')} ${new Date().toLocaleTimeString('en-US')}`, 20, 45);
-    doc.text(`Report period: ${analytics.length > 0 ? `${analytics[analytics.length - 1].date} - ${analytics[0].date}` : 'N/A'}`, 20, 55);
+    doc.text(`Nguoi tao: ${user?.full_name || user?.username}`, 20, 35);
+    doc.text(`Ngay xuat: ${new Date().toLocaleDateString('vi-VN')} ${new Date().toLocaleTimeString('vi-VN')}`, 20, 45);
+    doc.text(`Thoi gian: ${orders.length > 0 ? `${new Date(orders[orders.length - 1].created_at).toLocaleDateString('vi-VN')} - ${new Date(orders[0].created_at).toLocaleDateString('vi-VN')}` : 'Khong co du lieu'}`, 20, 55);
     
-    // Executive Summary
-    const totalSales = analytics.reduce((sum, item) => sum + item.total_sales, 0);
-    const totalOrders = analytics.reduce((sum, item) => sum + item.total_orders, 0);
-    const totalCustomers = analytics.reduce((sum, item) => sum + item.total_customers, 0);
-    const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
-    const avgDailySales = analytics.length > 0 ? totalSales / analytics.length : 0;
+    // Executive Summary - Use actual order data
+    const actualTotalRevenue = orders.reduce((sum, order) => sum + order.total_amount, 0);
+    const actualTotalOrders = orders.length;
+    const uniqueCustomers = new Set(orders.map(order => order.user_id)).size;
+    const avgOrderValue = actualTotalOrders > 0 ? actualTotalRevenue / actualTotalOrders : 0;
     
-    doc.setFontSize(14);
-    doc.text('1. BUSINESS OVERVIEW', 20, 75);
-    doc.setFontSize(12);
-    doc.text(`• Total revenue: $${totalSales.toLocaleString('en-US')}`, 25, 90);
-    doc.text(`• Total orders: ${totalOrders.toLocaleString('en-US')} orders`, 25, 100);
-    doc.text(`• Total customers: ${totalCustomers.toLocaleString('en-US')} customers`, 25, 110);
-    doc.text(`• Average order value: $${avgOrderValue.toLocaleString('en-US')}`, 25, 120);
-    doc.text(`• Average daily revenue: $${avgDailySales.toLocaleString('en-US')}`, 25, 130);
-    
-    // Category Analysis
-    const heartSales = analytics.filter(item => item.popular_category === 'Heart').reduce((sum, item) => sum + item.total_sales, 0);
-    const skinSales = analytics.filter(item => item.popular_category === 'Skin').reduce((sum, item) => sum + item.total_sales, 0);
-    const heartPercentage = totalSales > 0 ? (heartSales / totalSales * 100).toFixed(1) : '0';
-    const skinPercentage = totalSales > 0 ? (skinSales / totalSales * 100).toFixed(1) : '0';
+    // Calculate daily averages from actual orders
+    const orderDates = orders.map(order => new Date(order.created_at).toDateString());
+    const uniqueDays = new Set(orderDates).size;
+    const avgDailyRevenue = uniqueDays > 0 ? actualTotalRevenue / uniqueDays : 0;
+    const avgDailyOrders = uniqueDays > 0 ? actualTotalOrders / uniqueDays : 0;
     
     doc.setFontSize(14);
-    doc.text('2. PRODUCT CATEGORY ANALYSIS', 20, 150);
+    doc.text('1. TONG QUAN KINH DOANH', 20, 75);
     doc.setFontSize(12);
-    doc.text(`• Heart care: $${heartSales.toLocaleString('en-US')} (${heartPercentage}%)`, 25, 165);
-    doc.text(`• Skin care: $${skinSales.toLocaleString('en-US')} (${skinPercentage}%)`, 25, 175);
+    doc.text(`• Tong doanh thu: ${actualTotalRevenue.toLocaleString('vi-VN')}d`, 25, 90);
+    doc.text(`• Tong don hang: ${actualTotalOrders.toLocaleString('vi-VN')} don`, 25, 100);
+    doc.text(`• Tong khach hang: ${uniqueCustomers.toLocaleString('vi-VN')} khach`, 25, 110);
+    doc.text(`• Gia tri don hang TB: ${avgOrderValue.toLocaleString('vi-VN')}d`, 25, 120);
+    doc.text(`• Doanh thu TB/ngay: ${avgDailyRevenue.toLocaleString('vi-VN')}d`, 25, 130);
+    doc.text(`• Don hang TB/ngay: ${avgDailyOrders.toFixed(1)} don`, 25, 140);
     
-    // Trend Analysis
-    const recentSales = analytics.slice(0, 7).reduce((sum, item) => sum + item.total_sales, 0);
-    const olderSales = analytics.slice(7, 14).reduce((sum, item) => sum + item.total_sales, 0);
-    const growthRate = olderSales > 0 ? ((recentSales - olderSales) / olderSales * 100).toFixed(1) : '0';
+    // Order Status Analysis
+    const statusCounts = orders.reduce((acc, order) => {
+      acc[order.status] = (acc[order.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
     
     doc.setFontSize(14);
-    doc.text('3. TREND ANALYSIS', 20, 195);
+    doc.text('2. PHAN TICH TRANG THAI DON HANG', 20, 160);
     doc.setFontSize(12);
-    doc.text(`• Last 7 days growth: ${growthRate}%`, 25, 210);
-    doc.text(`• Trend: ${parseFloat(growthRate) > 0 ? 'Positive growth' : parseFloat(growthRate) < 0 ? 'Decline from last week' : 'Stable'}`, 25, 220);
+    let yPos = 175;
+    Object.entries(statusCounts).forEach(([status, count]) => {
+      const percentage = ((count / actualTotalOrders) * 100).toFixed(1);
+      const statusVN = status === 'pending' ? 'Cho xu ly' :
+                      status === 'confirmed' ? 'Da xac nhan' :
+                      status === 'preparing' ? 'Dang chuan bi' :
+                      status === 'packed' ? 'Da dong goi' :
+                      status === 'shipped' ? 'Dang giao hang' :
+                      status === 'delivered' ? 'Da giao hang' :
+                      status === 'cancelled' ? 'Da huy' : status;
+      doc.text(`• ${statusVN}: ${count} don (${percentage}%)`, 25, yPos);
+      yPos += 10;
+    });
+    
+    // Recent Performance Analysis
+    const last7Days = new Date();
+    last7Days.setDate(last7Days.getDate() - 7);
+    const recentOrders = orders.filter(order => new Date(order.created_at) >= last7Days);
+    const recentRevenue = recentOrders.reduce((sum, order) => sum + order.total_amount, 0);
+    
+    doc.setFontSize(14);
+    doc.text('3. PHAN TICH HIEU SUAT 7 NGAY QUA', 20, yPos + 10);
+    doc.setFontSize(12);
+    doc.text(`• Don hang 7 ngay qua: ${recentOrders.length} don`, 25, yPos + 25);
+    doc.text(`• Doanh thu 7 ngay qua: ${recentRevenue.toLocaleString('vi-VN')}d`, 25, yPos + 35);
+    doc.text(`• TB don hang/ngay: ${(recentOrders.length / 7).toFixed(1)} don`, 25, yPos + 45);
     
     // New page for detailed data
     doc.addPage();
     doc.setFontSize(14);
-    doc.text('4. DAILY BREAKDOWN', 20, 20);
+    doc.text('4. CHI TIET DON HANG GAN DAY', 20, 20);
     
-    let yPosition = 35;
+    let yPosition = 40;
     doc.setFontSize(10);
-    doc.text('Date', 20, yPosition);
-    doc.text('Revenue', 70, yPosition);
-    doc.text('Orders', 120, yPosition);
-    doc.text('Customers', 160, yPosition);
+    doc.text('Ma Don', 20, yPosition);
+    doc.text('Khach Hang', 60, yPosition);
+    doc.text('Tong Tien', 110, yPosition);
+    doc.text('Trang Thai', 150, yPosition);
+    doc.text('Ngay Tao', 180, yPosition);
     yPosition += 10;
     
     // Draw line
-    doc.line(20, yPosition - 5, 190, yPosition - 5);
+    doc.line(20, yPosition - 5, 200, yPosition - 5);
     
-    analytics.slice(0, 20).forEach((item, index) => {
-      const date = new Date(item.date).toLocaleDateString('en-US');
-      doc.text(date, 20, yPosition);
-      doc.text(`$${item.total_sales.toLocaleString('en-US')}`, 70, yPosition);
-      doc.text(`${item.total_orders}`, 120, yPosition);
-      doc.text(`${item.total_customers}`, 160, yPosition);
-      yPosition += 12;
+    orders.slice(0, 25).forEach((order, index) => {
+      const orderId = order.id.slice(0, 8);
+      const customerName = order.users.full_name || 'Khach hang';
+      const amount = `${order.total_amount.toLocaleString('vi-VN')}d`;
+      const statusVN = order.status === 'pending' ? 'Cho xu ly' :
+                      order.status === 'confirmed' ? 'Da xac nhan' :
+                      order.status === 'preparing' ? 'Dang chuan bi' :
+                      order.status === 'packed' ? 'Da dong goi' :
+                      order.status === 'shipped' ? 'Dang giao hang' :
+                      order.status === 'delivered' ? 'Da giao hang' :
+                      order.status === 'cancelled' ? 'Da huy' : order.status;
+      const date = new Date(order.created_at).toLocaleDateString('vi-VN');
+      
+      doc.setFontSize(8);
+      doc.text(orderId, 20, yPosition);
+      doc.text(customerName.length > 15 ? customerName.substring(0, 15) + '...' : customerName, 60, yPosition);
+      doc.text(amount, 110, yPosition);
+      doc.text(statusVN, 150, yPosition);
+      doc.text(date, 180, yPosition);
+      yPosition += 10;
       
       // Add new page if needed
       if (yPosition > 270) {
@@ -272,69 +308,91 @@ const Manager: React.FC = () => {
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.text(`Trang ${i}/${pageCount} - Long Châu Pharmacy Management System`, 20, 285);
-      doc.text(`Report generated automatically on ${new Date().toLocaleString('en-US')}`, 20, 290);
+      doc.text(`Trang ${i}/${pageCount} - He Thong Quan Ly Nha Thuoc Long Chau`, 20, 285);
+      doc.text(`Bao cao tu dong tao vao ${new Date().toLocaleString('vi-VN')}`, 20, 290);
     }
     
-    const fileName = `long-chau-report-${new Date().toISOString().split('T')[0]}.pdf`;
+    const fileName = `bao-cao-long-chau-${new Date().toISOString().split('T')[0]}.pdf`;
     doc.save(fileName);
   };
 
   const generateCustomerReport = () => {
     const doc = new jsPDF();
     
+    doc.setFont('helvetica');
     doc.setFontSize(20);
-    doc.text('CUSTOMER REPORT - LONG CHAU', 20, 20);
+    doc.text('BAO CAO KHACH HANG - LONG CHAU', 20, 20);
     
     doc.setFontSize(12);
-    doc.text(`Created by: ${user?.full_name || user?.username}`, 20, 35);
-    doc.text(`Export date: ${new Date().toLocaleDateString('en-US')}`, 20, 45);
+    doc.text(`Nguoi tao: ${user?.full_name || user?.username}`, 20, 35);
+    doc.text(`Ngay xuat: ${new Date().toLocaleDateString('vi-VN')}`, 20, 45);
     
-    const totalCustomers = analytics.reduce((sum, item) => sum + item.total_customers, 0);
-    const avgCustomersPerDay = analytics.length > 0 ? totalCustomers / analytics.length : 0;
-    const totalOrders = analytics.reduce((sum, item) => sum + item.total_orders, 0);
-    const avgOrdersPerCustomer = totalCustomers > 0 ? totalOrders / totalCustomers : 0;
+    // Use actual order data for customer analysis
+    const uniqueCustomers = new Set(orders.map(order => order.user_id)).size;
+    const totalOrdersCount = orders.length;
+    const avgOrdersPerCustomer = uniqueCustomers > 0 ? totalOrdersCount / uniqueCustomers : 0;
+    
+    // Customer with most orders
+    const customerOrderCounts = orders.reduce((acc, order) => {
+      const customerId = order.user_id;
+      acc[customerId] = (acc[customerId] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const topCustomer = Object.entries(customerOrderCounts).reduce((max, [id, count]) => 
+      count > max.count ? { id, count } : max, { id: '', count: 0 });
+    
+    const topCustomerInfo = orders.find(order => order.user_id === topCustomer.id)?.users;
     
     doc.setFontSize(14);
-    doc.text('CUSTOMER STATISTICS', 20, 65);
+    doc.text('THONG KE KHACH HANG', 20, 65);
     doc.setFontSize(12);
-    doc.text(`• Total customers: ${totalCustomers.toLocaleString('en-US')}`, 25, 80);
-    doc.text(`• Average customers per day: ${avgCustomersPerDay.toFixed(1)}`, 25, 90);
-    doc.text(`• Average orders per customer: ${avgOrdersPerCustomer.toFixed(1)}`, 25, 100);
+    doc.text(`• Tong so khach hang: ${uniqueCustomers} khach`, 25, 80);
+    doc.text(`• Tong so don hang: ${totalOrdersCount} don`, 25, 90);
+    doc.text(`• TB don hang/khach: ${avgOrdersPerCustomer.toFixed(1)} don`, 25, 100);
+    doc.text(`• Khach hang tich cuc nhat: ${topCustomerInfo?.full_name || 'N/A'} (${topCustomer.count} don)`, 25, 110);
     
-    doc.save(`customer-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`bao-cao-khach-hang-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const generateTrendReport = () => {
     const doc = new jsPDF();
     
+    doc.setFont('helvetica');
     doc.setFontSize(20);
-    doc.text('TREND REPORT - LONG CHAU', 20, 20);
+    doc.text('BAO CAO XU HUONG - LONG CHAU', 20, 20);
     
     doc.setFontSize(12);
-    doc.text(`Created by: ${user?.full_name || user?.username}`, 20, 35);
-    doc.text(`Export date: ${new Date().toLocaleDateString('en-US')}`, 20, 45);
+    doc.text(`Nguoi tao: ${user?.full_name || user?.username}`, 20, 35);
+    doc.text(`Ngay xuat: ${new Date().toLocaleDateString('vi-VN')}`, 20, 45);
     
-    // Calculate trends
-    const recentWeek = analytics.slice(0, 7);
-    const previousWeek = analytics.slice(7, 14);
+    // Calculate trends from actual orders
+    const now = new Date();
+    const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const previous7Days = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
     
-    const recentSales = recentWeek.reduce((sum, item) => sum + item.total_sales, 0);
-    const previousSales = previousWeek.reduce((sum, item) => sum + item.total_sales, 0);
-    const salesGrowth = previousSales > 0 ? ((recentSales - previousSales) / previousSales * 100).toFixed(1) : '0';
+    const recentOrders = orders.filter(order => new Date(order.created_at) >= last7Days);
+    const previousOrders = orders.filter(order => {
+      const orderDate = new Date(order.created_at);
+      return orderDate >= previous7Days && orderDate < last7Days;
+    });
     
-    const recentOrders = recentWeek.reduce((sum, item) => sum + item.total_orders, 0);
-    const previousOrders = previousWeek.reduce((sum, item) => sum + item.total_orders, 0);
-    const ordersGrowth = previousOrders > 0 ? ((recentOrders - previousOrders) / previousOrders * 100).toFixed(1) : '0';
+    const recentRevenue = recentOrders.reduce((sum, order) => sum + order.total_amount, 0);
+    const previousRevenue = previousOrders.reduce((sum, order) => sum + order.total_amount, 0);
+    
+    const revenueGrowth = previousRevenue > 0 ? ((recentRevenue - previousRevenue) / previousRevenue * 100).toFixed(1) : '0';
+    const orderGrowth = previousOrders.length > 0 ? ((recentOrders.length - previousOrders.length) / previousOrders.length * 100).toFixed(1) : '0';
     
     doc.setFontSize(14);
-    doc.text('7-DAY TREND ANALYSIS', 20, 65);
+    doc.text('PHAN TICH XU HUONG 7 NGAY', 20, 65);
     doc.setFontSize(12);
-    doc.text(`• Revenue growth: ${salesGrowth}%`, 25, 80);
-    doc.text(`• Order growth: ${ordersGrowth}%`, 25, 90);
-    doc.text(`• Assessment: ${parseFloat(salesGrowth) > 5 ? 'Strong growth' : parseFloat(salesGrowth) > 0 ? 'Stable growth' : 'Needs improvement'}`, 25, 100);
+    doc.text(`• Tang truong doanh thu: ${revenueGrowth}%`, 25, 80);
+    doc.text(`• Tang truong don hang: ${orderGrowth}%`, 25, 90);
+    doc.text(`• 7 ngay qua: ${recentOrders.length} don, ${recentRevenue.toLocaleString('vi-VN')}d`, 25, 100);
+    doc.text(`• 7 ngay truoc: ${previousOrders.length} don, ${previousRevenue.toLocaleString('vi-VN')}d`, 25, 110);
+    doc.text(`• Danh gia: ${parseFloat(revenueGrowth) > 5 ? 'Tang truong manh' : parseFloat(revenueGrowth) > 0 ? 'Tang truong on dinh' : 'Can cai thien'}`, 25, 120);
     
-    doc.save(`trend-report-${new Date().toISOString().split('T')[0]}.pdf`);
+    doc.save(`bao-cao-xu-huong-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   // Login screen

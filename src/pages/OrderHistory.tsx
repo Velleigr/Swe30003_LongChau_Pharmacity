@@ -15,7 +15,13 @@ import {
   AlertCircle,
   ShoppingBag,
   Filter,
-  Search
+  Search,
+  FileText,
+  Shield,
+  Camera,
+  User,
+  Phone,
+  MapPin
 } from 'lucide-react';
 
 interface OrderItem {
@@ -40,13 +46,39 @@ interface Order {
   order_items: OrderItem[];
 }
 
+interface Prescription {
+  id: string;
+  user_id: string;
+  pharmacist_id: string | null;
+  prescription_text: string | null;
+  image_url: string | null;
+  status: 'pending' | 'reviewed' | 'approved' | 'rejected';
+  order_id: string | null;
+  created_at: string;
+  updated_at: string;
+  users: {
+    full_name: string | null;
+    email: string;
+    phone: string | null;
+    address: string | null;
+  };
+  pharmacist?: {
+    full_name: string | null;
+    email: string;
+  };
+}
+
 const OrderHistory: React.FC = () => {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<'orders' | 'prescriptions'>('orders');
   const [orders, setOrders] = useState<Order[]>([]);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
+  const [prescriptionStatusFilter, setPrescriptionStatusFilter] = useState<string>('all');
+  const [orderSearchTerm, setOrderSearchTerm] = useState('');
+  const [prescriptionSearchTerm, setPrescriptionSearchTerm] = useState('');
 
   const statusOptions = [
     { value: 'all', label: 'Tất cả', color: 'bg-gray-100 text-gray-800' },
@@ -59,9 +91,18 @@ const OrderHistory: React.FC = () => {
     { value: 'cancelled', label: 'Đã hủy', color: 'bg-red-100 text-red-800' }
   ];
 
+  const prescriptionStatusOptions = [
+    { value: 'all', label: 'Tất cả', color: 'bg-gray-100 text-gray-800' },
+    { value: 'pending', label: 'Chờ duyệt', color: 'bg-yellow-100 text-yellow-800' },
+    { value: 'reviewed', label: 'Đã xem', color: 'bg-blue-100 text-blue-800' },
+    { value: 'approved', label: 'Đã phê duyệt', color: 'bg-green-100 text-green-800' },
+    { value: 'rejected', label: 'Từ chối', color: 'bg-red-100 text-red-800' }
+  ];
+
   useEffect(() => {
     if (user) {
       fetchOrders();
+      fetchPrescriptions();
     }
   }, [user]);
 
@@ -86,6 +127,24 @@ const OrderHistory: React.FC = () => {
     }
   };
 
+  const fetchPrescriptions = async () => {
+    if (!user) return;
+
+    try {
+      const response = await api.prescriptions.getAll({ user_id: user.id });
+
+      if (response.error) {
+        setError(response.error);
+        return;
+      }
+
+      setPrescriptions(response.data || []);
+    } catch (error) {
+      console.error('Error fetching prescriptions:', error);
+      setError('Không thể tải danh sách đơn thuốc');
+    }
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending':
@@ -102,26 +161,40 @@ const OrderHistory: React.FC = () => {
         return <CheckCircle className="w-4 h-4" />;
       case 'cancelled':
         return <AlertCircle className="w-4 h-4" />;
+      case 'reviewed':
+        return <Eye className="w-4 h-4" />;
+      case 'approved':
+        return <CheckCircle className="w-4 h-4" />;
+      case 'rejected':
+        return <AlertCircle className="w-4 h-4" />;
       default:
         return <Package className="w-4 h-4" />;
     }
   };
 
-  const getStatusColor = (status: string) => {
-    const statusOption = statusOptions.find(option => option.value === status);
+  const getStatusColor = (status: string, isOrder: boolean = true) => {
+    const options = isOrder ? statusOptions : prescriptionStatusOptions;
+    const statusOption = options.find(option => option.value === status);
     return statusOption?.color || 'bg-gray-100 text-gray-800';
   };
 
   const filteredOrders = orders.filter(order => {
-    const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
-    const matchesSearch = searchTerm === '' || 
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesStatus = orderStatusFilter === 'all' || order.status === orderStatusFilter;
+    const matchesSearch = orderSearchTerm === '' || 
+      order.id.toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
       order.order_items.some(item => 
-        item.products.name.toLowerCase().includes(searchTerm.toLowerCase())
+        item.products.name.toLowerCase().includes(orderSearchTerm.toLowerCase())
       );
     return matchesStatus && matchesSearch;
   });
 
+  const filteredPrescriptions = prescriptions.filter(prescription => {
+    const matchesStatus = prescriptionStatusFilter === 'all' || prescription.status === prescriptionStatusFilter;
+    const matchesSearch = prescriptionSearchTerm === '' || 
+      prescription.id.toLowerCase().includes(prescriptionSearchTerm.toLowerCase()) ||
+      (prescription.prescription_text && prescription.prescription_text.toLowerCase().includes(prescriptionSearchTerm.toLowerCase()));
+    return matchesStatus && matchesSearch;
+  });
   if (!user) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">

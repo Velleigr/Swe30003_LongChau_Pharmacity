@@ -33,7 +33,7 @@ const Header: React.FC = () => {
   return (
     <header className="bg-white shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center py-4">
+        <div className="flex justify-between items-center py-6">
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-2">
@@ -83,7 +83,7 @@ const Header: React.FC = () => {
                 <div className="flex items-center space-x-2">
                   {(user.role === 'manager' || user.role === 'pharmacist') && (
                     <Link
-                      to="/manager"
+                      to={user.role === 'manager' ? '/manager' : '/pharmacist'}
                       className={`flex items-center space-x-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                         user.role === 'manager' 
                           ? 'text-purple-600 hover:bg-purple-50' 
@@ -138,7 +138,7 @@ const Header: React.FC = () => {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden py-4 border-t">
+          <div className="md:hidden py-6 border-t">
             <nav className="flex flex-col space-y-2">
               {navigation.map((item) => (
                 <Link

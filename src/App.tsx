@@ -13,6 +13,7 @@ import OrderDetails from './pages/OrderDetails';
 import OrderTracking from './pages/OrderTracking';
 import OrderHistory from './pages/OrderHistory';
 import Manager from './pages/Manager';
+import Pharmacist from './pages/Pharmacist';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -33,6 +34,7 @@ function App() {
                 <Route path="/order/tracking/:id" element={<OrderTracking />} />
                 <Route path="/order/history" element={<OrderHistory />} />
                 <Route path="/manager" element={<Manager />} />
+                <Route path="/pharmacist" element={<Pharmacist />} />
               </Routes>
             </main>
             <Footer />

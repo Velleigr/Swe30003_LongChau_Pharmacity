@@ -247,11 +247,41 @@ const OrderHistory: React.FC = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Lịch sử đơn hàng
+            Lịch sử
           </h1>
           <p className="text-gray-600">
-            Quản lý và theo dõi tất cả đơn hàng của bạn
+            Quản lý và theo dõi tất cả đơn hàng và đơn thuốc của bạn
           </p>
+        </div>
+
+        {/* Tabs */}
+        <div className="bg-white rounded-xl shadow-lg mb-8">
+          <div className="border-b border-gray-200">
+            <nav className="flex">
+              <button
+                onClick={() => setActiveTab('orders')}
+                className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
+                  activeTab === 'orders'
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Package className="w-5 h-5 mx-auto mb-1" />
+                Đơn hàng ({orders.length})
+              </button>
+              <button
+                onClick={() => setActiveTab('prescriptions')}
+                className={`flex-1 py-4 px-6 text-center font-medium transition-colors ${
+                  activeTab === 'prescriptions'
+                    ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <FileText className="w-5 h-5 mx-auto mb-1" />
+                Đơn thuốc ({prescriptions.length})
+              </button>
+            </nav>
+          </div>
         </div>
 
         {/* Filters */}
@@ -262,9 +292,9 @@ const OrderHistory: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Tìm kiếm theo mã đơn hoặc sản phẩm..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder={activeTab === 'orders' ? "Tìm kiếm theo mã đơn hoặc sản phẩm..." : "Tìm kiếm theo mã đơn hoặc nội dung..."}
+                value={activeTab === 'orders' ? orderSearchTerm : prescriptionSearchTerm}
+                onChange={(e) => activeTab === 'orders' ? setOrderSearchTerm(e.target.value) : setPrescriptionSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -273,11 +303,11 @@ const OrderHistory: React.FC = () => {
             <div className="flex items-center space-x-2">
               <Filter className="w-5 h-5 text-gray-500" />
               <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                value={activeTab === 'orders' ? orderStatusFilter : prescriptionStatusFilter}
+                onChange={(e) => activeTab === 'orders' ? setOrderStatusFilter(e.target.value) : setPrescriptionStatusFilter(e.target.value)}
                 className="border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                {statusOptions.map((option) => (
+                {(activeTab === 'orders' ? statusOptions : prescriptionStatusOptions).map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -287,154 +317,317 @@ const OrderHistory: React.FC = () => {
           </div>
         </div>
 
-        {/* Orders List */}
-        {filteredOrders.length === 0 ? (
-          <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-            <ShoppingBag className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              {orders.length === 0 ? 'Chưa có đơn hàng nào' : 'Không tìm thấy đơn hàng'}
-            </h2>
-            <p className="text-gray-600 mb-6">
-              {orders.length === 0 
-                ? 'Hãy đặt hàng để bắt đầu mua sắm với chúng tôi'
-                : 'Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm'
-              }
-            </p>
-            {orders.length === 0 && (
-              <Link
-                to="/order"
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
-              >
-                <Package className="w-5 h-5 mr-2" />
-                Bắt đầu mua sắm
-              </Link>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {filteredOrders.map((order, index) => (
-              <motion.div
-                key={order.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
-                className="bg-white rounded-xl shadow-lg overflow-hidden"
-              >
-                {/* Order Header */}
-                <div className="p-6 border-b border-gray-200">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Package className="w-6 h-6 text-blue-600" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          Đơn hàng #{order.id.slice(0, 8)}
-                        </h3>
-                        <div className="flex items-center space-x-4 text-sm text-gray-600">
-                          <div className="flex items-center space-x-1">
-                            <Calendar className="w-4 h-4" />
-                            <span>{new Date(order.created_at).toLocaleDateString('vi-VN')}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <DollarSign className="w-4 h-4" />
-                            <span>{order.total_amount.toLocaleString()}đ</span>
+        {/* Content based on active tab */}
+        {activeTab === 'orders' ? (
+          /* Orders List */
+          filteredOrders.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+              <ShoppingBag className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                {orders.length === 0 ? 'Chưa có đơn hàng nào' : 'Không tìm thấy đơn hàng'}
+              </h2>
+              <p className="text-gray-600 mb-6">
+                {orders.length === 0 
+                  ? 'Hãy đặt hàng để bắt đầu mua sắm với chúng tôi'
+                  : 'Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm'
+                }
+              </p>
+              {orders.length === 0 && (
+                <Link
+                  to="/order"
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
+                >
+                  <Package className="w-5 h-5 mr-2" />
+                  Bắt đầu mua sắm
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {filteredOrders.map((order, index) => (
+                <motion.div
+                  key={order.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  className="bg-white rounded-xl shadow-lg overflow-hidden"
+                >
+                  {/* Order Header */}
+                  <div className="p-6 border-b border-gray-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Package className="w-6 h-6 text-blue-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            Đơn hàng #{order.id.slice(0, 8)}
+                          </h3>
+                          <div className="flex items-center space-x-4 text-sm text-gray-600">
+                            <div className="flex items-center space-x-1">
+                              <Calendar className="w-4 h-4" />
+                              <span>{new Date(order.created_at).toLocaleDateString('vi-VN')}</span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <DollarSign className="w-4 h-4" />
+                              <span>{order.total_amount.toLocaleString()}đ</span>
+                            </div>
                           </div>
                         </div>
                       </div>
+                      
+                      <div className="flex items-center space-x-3">
+                        <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
+                          {getStatusIcon(order.status)}
+                          <span>
+                            {statusOptions.find(s => s.value === order.status)?.label || order.status}
+                          </span>
+                        </span>
+                        
+                        <Link
+                          to={`/order/tracking/${order.id}`}
+                          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center text-sm"
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          Chi tiết
+                        </Link>
+                      </div>
                     </div>
+                  </div>
+
+                  {/* Order Items */}
+                  <div className="p-6">
+                    <h4 className="font-semibold text-gray-900 mb-4">
+                      Sản phẩm ({order.order_items.length})
+                    </h4>
                     
-                    <div className="flex items-center space-x-3">
-                      <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(order.status)}`}>
-                        {getStatusIcon(order.status)}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {order.order_items.map((item) => (
+                        <div key={item.id} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg">
+                          <img
+                            src={item.products.image_url || 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg'}
+                            alt={item.products.name}
+                            className="w-12 h-12 rounded-lg object-cover"
+                          />
+                          
+                          <div className="flex-1 min-w-0">
+                            <h5 className="font-medium text-gray-900 truncate">
+                              {item.products.name}
+                            </h5>
+                            <div className="flex items-center justify-between text-sm text-gray-600">
+                              <span>SL: {item.quantity}</span>
+                              <span className="font-medium text-blue-600">
+                                {item.price.toLocaleString()}đ
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Delivery Address */}
+                    {order.delivery_address && (
+                      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                        <h5 className="font-medium text-gray-900 mb-1">Địa chỉ giao hàng:</h5>
+                        <p className="text-gray-700 text-sm">{order.delivery_address}</p>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )
+        ) : (
+          /* Prescriptions List */
+          filteredPrescriptions.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+              <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                {prescriptions.length === 0 ? 'Chưa có đơn thuốc nào' : 'Không tìm thấy đơn thuốc'}
+              </h2>
+              <p className="text-gray-600 mb-6">
+                {prescriptions.length === 0 
+                  ? 'Hãy tải lên đơn thuốc đầu tiên của bạn'
+                  : 'Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm'
+                }
+              </p>
+              {prescriptions.length === 0 && (
+                <Link
+                  to="/prescription"
+                  className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
+                >
+                  <FileText className="w-5 h-5 mr-2" />
+                  Tải lên đơn thuốc
+                </Link>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {filteredPrescriptions.map((prescription, index) => (
+                <motion.div
+                  key={prescription.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  className="bg-white rounded-xl shadow-lg overflow-hidden"
+                >
+                  {/* Prescription Header */}
+                  <div className="p-6 border-b border-gray-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                          <FileText className="w-6 h-6 text-green-600" />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            Đơn thuốc #{prescription.id.slice(0, 8)}
+                          </h3>
+                          <div className="flex items-center space-x-4 text-sm text-gray-600">
+                            <div className="flex items-center space-x-1">
+                              <Calendar className="w-4 h-4" />
+                              <span>{new Date(prescription.created_at).toLocaleDateString('vi-VN')}</span>
+                            </div>
+                            {prescription.pharmacist && (
+                              <div className="flex items-center space-x-1">
+                                <Shield className="w-4 h-4" />
+                                <span>Dược sĩ: {prescription.pharmacist.full_name}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(prescription.status, false)}`}>
+                        {getStatusIcon(prescription.status)}
                         <span>
-                          {statusOptions.find(s => s.value === order.status)?.label || order.status}
+                          {prescriptionStatusOptions.find(s => s.value === prescription.status)?.label || prescription.status}
                         </span>
                       </span>
-                      
-                      <Link
-                        to={`/order/tracking/${order.id}`}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center text-sm"
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        Chi tiết
-                      </Link>
                     </div>
                   </div>
-                </div>
 
-                {/* Order Items */}
-                <div className="p-6">
-                  <h4 className="font-semibold text-gray-900 mb-4">
-                    Sản phẩm ({order.order_items.length})
-                  </h4>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {order.order_items.map((item) => (
-                      <div key={item.id} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg">
-                        <img
-                          src={item.products.image_url || 'https://images.pexels.com/photos/3683074/pexels-photo-3683074.jpeg'}
-                          alt={item.products.name}
-                          className="w-12 h-12 rounded-lg object-cover"
-                        />
-                        
-                        <div className="flex-1 min-w-0">
-                          <h5 className="font-medium text-gray-900 truncate">
-                            {item.products.name}
-                          </h5>
-                          <div className="flex items-center justify-between text-sm text-gray-600">
-                            <span>SL: {item.quantity}</span>
-                            <span className="font-medium text-blue-600">
-                              {item.price.toLocaleString()}đ
-                            </span>
+                  {/* Prescription Content */}
+                  <div className="p-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Prescription Text */}
+                      {prescription.prescription_text && (
+                        <div>
+                          <h4 className="font-semibold text-gray-900 mb-3">
+                            Nội dung đơn thuốc
+                          </h4>
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <pre className="whitespace-pre-wrap text-sm text-gray-700">
+                              {prescription.prescription_text}
+                            </pre>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      )}
 
-                  {/* Delivery Address */}
-                  {order.delivery_address && (
-                    <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                      <h5 className="font-medium text-gray-900 mb-1">Địa chỉ giao hàng:</h5>
-                      <p className="text-gray-700 text-sm">{order.delivery_address}</p>
+                      {/* Prescription Image */}
+                      {prescription.image_url && (
+                        <div>
+                          <h4 className="font-semibold text-gray-900 mb-3">
+                            Hình ảnh đơn thuốc
+                          </h4>
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <img
+                              src={prescription.image_url}
+                              alt="Đơn thuốc"
+                              className="w-full h-48 object-cover rounded-lg"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </motion.div>
-            ))}
-          </div>
+
+                    {/* Order Link */}
+                    {prescription.order_id && (
+                      <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <Package className="w-5 h-5 text-blue-600" />
+                            <span className="text-blue-900 font-medium">
+                              Đã tạo đơn hàng từ đơn thuốc này
+                            </span>
+                          </div>
+                          <Link
+                            to={`/order/tracking/${prescription.order_id}`}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm inline-flex items-center"
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Xem đơn hàng
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )
         )}
 
         {/* Summary */}
-        {filteredOrders.length > 0 && (
+        {(activeTab === 'orders' ? filteredOrders.length > 0 : filteredPrescriptions.length > 0) && (
           <div className="mt-8 bg-white rounded-xl shadow-lg p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Tổng kết
             </h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">
-                  {filteredOrders.length}
+            {activeTab === 'orders' ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {filteredOrders.length}
+                  </div>
+                  <div className="text-gray-600">Tổng đơn hàng</div>
                 </div>
-                <div className="text-gray-600">Tổng đơn hàng</div>
-              </div>
-              
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">
-                  {filteredOrders.reduce((sum, order) => sum + order.total_amount, 0).toLocaleString()}đ
+                
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {filteredOrders.reduce((sum, order) => sum + order.total_amount, 0).toLocaleString()}đ
+                  </div>
+                  <div className="text-gray-600">Tổng chi tiêu</div>
                 </div>
-                <div className="text-gray-600">Tổng chi tiêu</div>
-              </div>
-              
-              <div className="text-center">
-                <div className="text-2xl font-bold text-purple-600">
-                  {filteredOrders.filter(order => order.status === 'delivered').length}
+                
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {filteredOrders.filter(order => order.status === 'delivered').length}
+                  </div>
+                  <div className="text-gray-600">Đã giao thành công</div>
                 </div>
-                <div className="text-gray-600">Đã giao thành công</div>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {filteredPrescriptions.length}
+                  </div>
+                  <div className="text-gray-600">Tổng đơn thuốc</div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-green-600">
+                    {filteredPrescriptions.filter(p => p.status === 'approved').length}
+                  </div>
+                  <div className="text-gray-600">Đã phê duyệt</div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-yellow-600">
+                    {filteredPrescriptions.filter(p => p.status === 'pending').length}
+                  </div>
+                  <div className="text-gray-600">Chờ duyệt</div>
+                </div>
+                
+                <div className="text-center">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {filteredPrescriptions.filter(p => p.order_id).length}
+                  </div>
+                  <div className="text-gray-600">Đã tạo đơn hàng</div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

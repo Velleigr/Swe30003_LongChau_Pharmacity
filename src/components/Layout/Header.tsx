@@ -25,7 +25,8 @@ const Header: React.FC = () => {
     { name: 'Trang chủ', href: '/', icon: Heart },
     { name: 'Đơn thuốc', href: '/prescription', icon: FileText },
     { name: 'Đặt hàng', href: '/order', icon: ShoppingCart },
-    { name: 'Lịch sử', href: '/order/history', icon: BarChart3 },
+    { name: 'Lịch sử đơn hàng', href: '/order/history', icon: BarChart3 },
+    { name: 'Lịch sử đơn thuốc', href: '/prescription/history', icon: FileText },
   ];
 
   const isActive = (path: string) => location.pathname === path;

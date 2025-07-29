@@ -20,6 +20,8 @@ interface PrescriptionForm {
   patientName: string;
   patientPhone: string;
   patientAddress: string;
+  branch: string;
+  pharmacist: string;
   doctorName: string;
   hospitalName: string;
   prescriptionText: string;
@@ -32,15 +34,57 @@ const Prescription: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [prescriptionId, setPrescriptionId] = useState<string | null>(null);
+  const [pharmacists, setPharmacists] = useState<Array<{id: string, full_name: string, branch: string}>>([]);
   const [form, setForm] = useState<PrescriptionForm>({
     patientName: '',
     patientPhone: '',
     patientAddress: '',
+    branch: '',
+    pharmacist: '',
     doctorName: '',
     hospitalName: '',
     prescriptionText: '',
     prescriptionImage: null
   });
+
+  const branches = [
+    { id: 'hcm-district1', name: 'Long Châu Quận 1 - TP.HCM' },
+    { id: 'hcm-district3', name: 'Long Châu Quận 3 - TP.HCM' },
+    { id: 'hcm-district5', name: 'Long Châu Quận 5 - TP.HCM' },
+    { id: 'hcm-district7', name: 'Long Châu Quận 7 - TP.HCM' },
+    { id: 'hcm-tanbinh', name: 'Long Châu Tân Bình - TP.HCM' },
+    { id: 'hcm-binhthanh', name: 'Long Châu Bình Thạnh - TP.HCM' }
+  ];
+
+  const mockPharmacists = [
+    { id: '1', full_name: 'Dược sĩ Nguyễn Văn An', branch: 'hcm-district1' },
+    { id: '2', full_name: 'Dược sĩ Trần Thị Bình', branch: 'hcm-district1' },
+    { id: '3', full_name: 'Dược sĩ Lê Minh Cường', branch: 'hcm-district3' },
+    { id: '4', full_name: 'Dược sĩ Phạm Thị Dung', branch: 'hcm-district3' },
+    { id: '5', full_name: 'Dược sĩ Hoàng Văn Em', branch: 'hcm-district5' },
+    { id: '6', full_name: 'Dược sĩ Võ Thị Phương', branch: 'hcm-district5' },
+    { id: '7', full_name: 'Dược sĩ Đặng Minh Quân', branch: 'hcm-district7' },
+    { id: '8', full_name: 'Dược sĩ Bùi Thị Hoa', branch: 'hcm-district7' },
+    { id: '9', full_name: 'Dược sĩ Ngô Văn Tài', branch: 'hcm-tanbinh' },
+    { id: '10', full_name: 'Dược sĩ Lý Thị Lan', branch: 'hcm-tanbinh' },
+    { id: '11', full_name: 'Dược sĩ Trương Minh Tuấn', branch: 'hcm-binhthanh' },
+    { id: '12', full_name: 'Dược sĩ Phan Thị Mai', branch: 'hcm-binhthanh' }
+  ];
+
+  useEffect(() => {
+    // Filter pharmacists based on selected branch
+    if (form.branch) {
+      const branchPharmacists = mockPharmacists.filter(p => p.branch === form.branch);
+      setPharmacists(branchPharmacists);
+      // Reset pharmacist selection when branch changes
+      if (form.pharmacist && !branchPharmacists.find(p => p.id === form.pharmacist)) {
+        setForm(prev => ({ ...prev, pharmacist: '' }));
+      }
+    } else {
+      setPharmacists([]);
+      setForm(prev => ({ ...prev, pharmacist: '' }));
+    }
+  }, [form.branch]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -141,6 +185,16 @@ const Prescription: React.FC = () => {
                 <div className="flex items-center space-x-3">
                   <MapPin className="w-5 h-5 text-gray-400" />
                   <span className="text-gray-700">{form.patientAddress}</span>
+                </div>
+              </div>
+              
+              <div className="mt-6 p-4 bg-green-50 rounded-lg">
+                <h4 className="font-semibold text-green-900 mb-2">
+                  Thông tin chi nhánh:
+                </h4>
+                <div className="text-sm text-green-800 space-y-1">
+                  <p>• Chi nhánh: {branches.find(b => b.id === form.branch)?.name}</p>
+                  <p>• Dược sĩ phụ trách: {mockPharmacists.find(p => p.id === form.pharmacist)?.full_name}</p>
                 </div>
               </div>
               
@@ -292,6 +346,56 @@ const Prescription: React.FC = () => {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="Nhập tên bệnh viện"
                   />
+                </div>
+              </div>
+            </div>
+
+            {/* Branch and Pharmacist Selection */}
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Chọn chi nhánh và dược sĩ
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Chi nhánh *
+                  </label>
+                  <select
+                    name="branch"
+                    value={form.branch}
+                    onChange={handleInputChange}
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Chọn chi nhánh</option>
+                    {branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Dược sĩ phụ trách *
+                  </label>
+                  <select
+                    name="pharmacist"
+                    value={form.pharmacist}
+                    onChange={handleInputChange}
+                    required
+                    disabled={!form.branch}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                  >
+                    <option value="">
+                      {form.branch ? 'Chọn dược sĩ' : 'Vui lòng chọn chi nhánh trước'}
+                    </option>
+                    {pharmacists.map((pharmacist) => (
+                      <option key={pharmacist.id} value={pharmacist.id}>
+                        {pharmacist.full_name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
             </div>

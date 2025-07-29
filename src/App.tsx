@@ -12,6 +12,7 @@ import Cart from './pages/Cart';
 import OrderDetails from './pages/OrderDetails';
 import OrderTracking from './pages/OrderTracking';
 import OrderHistory from './pages/OrderHistory';
+import PrescriptionHistory from './pages/PrescriptionHistory';
 import Manager from './pages/Manager';
 import Pharmacist from './pages/Pharmacist';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -33,6 +34,7 @@ function App() {
                 <Route path="/order/details/:id" element={<OrderDetails />} />
                 <Route path="/order/tracking/:id" element={<OrderTracking />} />
                 <Route path="/order/history" element={<OrderHistory />} />
+                <Route path="/prescription/history" element={<PrescriptionHistory />} />
                 <Route path="/manager" element={<Manager />} />
                 <Route path="/pharmacist" element={<Pharmacist />} />
               </Routes>

@@ -50,12 +50,12 @@ const Prescription: React.FC = () => {
   });
 
   const branches = [
-    { id: 'hcm-district1', name: 'Long Châu Quận 1 - TP.HCM', dbValue: 'hcm-district1' },
-    { id: 'hcm-district3', name: 'Long Châu Quận 3 - TP.HCM', dbValue: 'hcm-district3' },
-    { id: 'hcm-district5', name: 'Long Châu Quận 5 - TP.HCM', dbValue: 'hcm-district5' },
-    { id: 'hcm-district7', name: 'Long Châu Quận 7 - TP.HCM', dbValue: 'hcm-district7' },
-    { id: 'hcm-tanbinh', name: 'Long Châu Tân Bình - TP.HCM', dbValue: 'hcm-tanbinh' },
-    { id: 'hcm-binhthanh', name: 'Long Châu Bình Thạnh - TP.HCM', dbValue: 'hcm-binhthanh' }
+    { id: 'hcm-district1', name: 'Long Châu Quận 1 - TP.HCM' },
+    { id: 'hcm-district3', name: 'Long Châu Quận 3 - TP.HCM' },
+    { id: 'hcm-district5', name: 'Long Châu Quận 5 - TP.HCM' },
+    { id: 'hcm-district7', name: 'Long Châu Quận 7 - TP.HCM' },
+    { id: 'hcm-tanbinh', name: 'Long Châu Tân Bình - TP.HCM' },
+    { id: 'hcm-binhthanh', name: 'Long Châu Bình Thạnh - TP.HCM' }
   ];
 
   // Fetch pharmacists from database based on selected branch
@@ -65,27 +65,49 @@ const Prescription: React.FC = () => {
       return;
     }
 
-    // Find the database value for the selected branch
-    const selectedBranch = branches.find(b => b.id === branchId);
-    if (!selectedBranch) {
-      setPharmacists([]);
-      return;
-    }
-
     setLoadingPharmacists(true);
+    console.log('Fetching pharmacists for branch:', branchId);
+    
     try {
+      // First, let's check all pharmacists to debug
+      const { data: allPharmacists, error: allError } = await supabase
+        .from('users')
+        .select('id, full_name, branch, username')
+        .eq('role', 'pharmacist');
+      
+      console.log('All pharmacists in database:', allPharmacists);
+      
+      // Map frontend branch IDs to database branch values
+      const branchMapping: { [key: string]: string } = {
+        'hcm-district1': 'hcm-district1',
+        'hcm-district3': 'hcm-district3', 
+        'hcm-district5': 'hcm-district5',
+        'hcm-district7': 'hcm-district7',
+        'hcm-tanbinh': 'hcm-tanbinh',
+        'hcm-binhthanh': 'hcm-binhthanh'
+      };
+      
+      const dbBranchValue = branchMapping[branchId];
+      console.log('Looking for branch value:', dbBranchValue);
+      
+      if (!dbBranchValue) {
+        console.log('No mapping found for branch:', branchId);
+        setPharmacists([]);
+        return;
+      }
+      
       const { data, error } = await supabase
         .from('users')
         .select('id, full_name, branch')
         .eq('role', 'pharmacist')
-        .eq('branch', selectedBranch.dbValue)
+        .eq('branch', dbBranchValue)
         .order('full_name');
 
       if (error) {
         console.error('Error fetching pharmacists:', error);
         setPharmacists([]);
       } else {
-        console.log('Fetched pharmacists for branch:', selectedBranch.dbValue, data);
+        console.log('Fetched pharmacists for branch:', dbBranchValue, data);
         setPharmacists(data || []);
       }
     } catch (error) {

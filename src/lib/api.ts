@@ -196,6 +196,23 @@ class ApiClient {
     },
   };
 
+  // Notification API methods
+  notifications = {
+    sendPrescriptionNotification: (data: {
+      pharmacist_id: string;
+      patient_name: string;
+      patient_phone: string;
+      prescription_content: string;
+      prescription_id: string;
+      branch_name?: string;
+    }) => {
+      return this.request('/send-prescription-notification', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+    },
+  };
+
   // User API methods
   users = {
     login: (credentials: { username: string; password: string }) => {

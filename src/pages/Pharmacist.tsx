@@ -246,7 +246,7 @@ const Pharmacist: React.FC = () => {
             Bảng điều khiển dược sĩ
           </h1>
           <p className="text-gray-600">
-            Quản lý đơn hàng và xem xét đơn thuốc
+            Quản lý đơn hàng và xem xét đơn thuốc - Bạn sẽ nhận email thông báo khi có đơn thuốc mới
           </p>
         </div>
 

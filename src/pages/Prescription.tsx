@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import DeliveryTracker from '../components/ui/DeliveryTracker';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import NotificationBanner from '../components/ui/NotificationBanner';
 import {
   FileText,
   Upload,
@@ -37,6 +38,8 @@ const Prescription: React.FC = () => {
   const [prescriptionId, setPrescriptionId] = useState<string | null>(null);
   const [pharmacists, setPharmacists] = useState<Array<{id: string, full_name: string | null, branch: string | null}>>([]);
   const [loadingPharmacists, setLoadingPharmacists] = useState(false);
+  const [showNotification, setShowNotification] = useState(false);
+  const [notificationMessage, setNotificationMessage] = useState('');
   const [form, setForm] = useState<PrescriptionForm>({
     patientName: '',
     patientPhone: '',
@@ -169,6 +172,29 @@ const Prescription: React.FC = () => {
         throw new Error(response.error);
       }
 
+      // Send email notification to the selected pharmacist
+      try {
+        const selectedBranch = branches.find(b => b.id === form.branch);
+        const selectedPharmacist = pharmacists.find(p => p.id === form.pharmacist);
+        
+        const notificationResponse = await api.notifications.sendPrescriptionNotification({
+          pharmacist_id: form.pharmacist,
+          patient_name: form.patientName,
+          patient_phone: form.patientPhone,
+          prescription_content: form.prescriptionText || 'Prescription uploaded as image',
+          prescription_id: response.data.id,
+          branch_name: selectedBranch?.name
+        });
+        
+        if (!notificationResponse.error) {
+          setNotificationMessage(`Email đã được gửi đến dược sĩ ${selectedPharmacist?.full_name || 'được chỉ định'}`);
+          setShowNotification(true);
+        }
+      } catch (emailError) {
+        // Don't fail the main operation if email fails
+        console.error('Failed to send email notification:', emailError);
+      }
+
       setPrescriptionId(response.data.id);
       setSubmitted(true);
     } catch (error) {
@@ -250,6 +276,7 @@ const Prescription: React.FC = () => {
                   Quy trình tiếp theo:
                 </h4>
                 <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Dược sĩ sẽ nhận email thông báo ngay lập tức</li>
                   <li>• Dược sĩ sẽ kiểm tra đơn thuốc</li>
                   <li>• Xác nhận tương tác thuốc</li>
                   <li>• Tạo đơn hàng tự động khi được phê duyệt</li>
@@ -265,6 +292,13 @@ const Prescription: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12">
+      <NotificationBanner
+        message={notificationMessage}
+        type="success"
+        isVisible={showNotification}
+        onClose={() => setShowNotification(false)}
+      />
+      
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

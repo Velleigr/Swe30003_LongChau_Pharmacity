@@ -107,7 +107,7 @@ const Pharmacist: React.FC = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch orders using direct Supabase query since pharmacists can see all orders
+      // Fetch orders and prescriptions using direct Supabase query
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       
@@ -126,8 +126,11 @@ const Pharmacist: React.FC = () => {
           setOrders(ordersData || []);
         }
 
-        // Fetch prescriptions assigned to this pharmacist only
-        const prescriptionsResponse = await fetch(`${supabaseUrl}/rest/v1/prescriptions?select=*,users(full_name,email,phone,address)&pharmacist_id=eq.${user.id}&order=created_at.desc&limit=50`, {
+        // Fetch prescriptions assigned to this pharmacist OR all pending prescriptions
+        console.log('Fetching prescriptions for pharmacist ID:', user?.id);
+        
+        // First, try to get prescriptions assigned to this pharmacist
+        const assignedPrescriptionsResponse = await fetch(`${supabaseUrl}/rest/v1/prescriptions?select=*,users(full_name,email,phone,address)&pharmacist_id=eq.${user.id}&order=created_at.desc`, {
           headers: {
             'apikey': supabaseKey,
             'Authorization': `Bearer ${supabaseKey}`,
@@ -135,9 +138,51 @@ const Pharmacist: React.FC = () => {
           }
         });
 
-        if (prescriptionsResponse.ok) {
-          const prescriptionsData = await prescriptionsResponse.json();
-          setPrescriptions(prescriptionsData || []);
+        let allPrescriptions: Prescription[] = [];
+        
+        if (assignedPrescriptionsResponse.ok) {
+          const assignedData = await assignedPrescriptionsResponse.json();
+          console.log('Assigned prescriptions:', assignedData);
+          allPrescriptions = [...(assignedData || [])];
+        }
+        
+        // Also fetch pending prescriptions that are not assigned to any pharmacist yet
+        const pendingPrescriptionsResponse = await fetch(`${supabaseUrl}/rest/v1/prescriptions?select=*,users(full_name,email,phone,address)&status=eq.pending&pharmacist_id=is.null&order=created_at.desc`, {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (pendingPrescriptionsResponse.ok) {
+          const pendingData = await pendingPrescriptionsResponse.json();
+          console.log('Pending prescriptions:', pendingData);
+          // Add pending prescriptions that are not already in the list
+          const pendingPrescriptions = (pendingData || []).filter((pending: Prescription) => 
+            !allPrescriptions.some(assigned => assigned.id === pending.id)
+          );
+          allPrescriptions = [...allPrescriptions, ...pendingPrescriptions];
+        }
+        
+        console.log('Total prescriptions for pharmacist:', allPrescriptions);
+        setPrescriptions(allPrescriptions);
+        
+        // If no prescriptions found, let's debug by fetching all prescriptions
+        if (allPrescriptions.length === 0) {
+          console.log('No prescriptions found, fetching all prescriptions for debugging...');
+          const allPrescriptionsResponse = await fetch(`${supabaseUrl}/rest/v1/prescriptions?select=*,users(full_name,email,phone,address)&order=created_at.desc&limit=10`, {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (allPrescriptionsResponse.ok) {
+            const debugData = await allPrescriptionsResponse.json();
+            console.log('All prescriptions in database (for debugging):', debugData);
+          }
         }
       }
     } catch (error) {

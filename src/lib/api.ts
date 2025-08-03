@@ -167,6 +167,7 @@ class ApiClient {
 
     create: (prescription: {
       user_id: string;
+      pharmacist_id?: string;
       prescription_text?: string;
       image_url?: string;
       status?: string;

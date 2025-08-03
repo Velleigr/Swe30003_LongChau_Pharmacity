@@ -144,6 +144,7 @@ const PrescriptionController = {
         .from('prescriptions')
         .insert([{
           user_id: prescription.user_id,
+          pharmacist_id: prescription.pharmacist_id || null,
           prescription_text: prescription.prescription_text || null,
           image_url: prescription.image_url || null,
           status: prescription.status || 'pending'

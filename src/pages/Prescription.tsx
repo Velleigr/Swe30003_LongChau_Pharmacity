@@ -163,6 +163,7 @@ const Prescription: React.FC = () => {
 
       const response = await api.prescriptions.create({
         user_id: user.id,
+        pharmacist_id: form.pharmacist,
         prescription_text: form.prescriptionText || undefined,
         image_url: imageUrl || undefined,
         status: 'pending'

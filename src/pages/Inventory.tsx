@@ -71,11 +71,16 @@ const Inventory: React.FC = () => {
   const branches = [
     { id: 'all', name: 'Tất cả chi nhánh' },
     { id: 'hcm-district1', name: 'Long Châu Quận 1 - TP.HCM' },
+    { id: 'hcm-district2', name: 'Long Châu Quận 2 - TP.HCM' },
     { id: 'hcm-district3', name: 'Long Châu Quận 3 - TP.HCM' },
+    { id: 'hcm-district4', name: 'Long Châu Quận 4 - TP.HCM' },
     { id: 'hcm-district5', name: 'Long Châu Quận 5 - TP.HCM' },
+    { id: 'hcm-district6', name: 'Long Châu Quận 6 - TP.HCM' },
     { id: 'hcm-district7', name: 'Long Châu Quận 7 - TP.HCM' },
     { id: 'hcm-tanbinh', name: 'Long Châu Tân Bình - TP.HCM' },
-    { id: 'hcm-binhthanh', name: 'Long Châu Bình Thạnh - TP.HCM' }
+    { id: 'hcm-binhthanh', name: 'Long Châu Bình Thạnh - TP.HCM' },
+    { id: 'hcm-govap', name: 'Long Châu Gò Vấp - TP.HCM' },
+    { id: 'hcm-thuduc', name: 'Long Châu Thủ Đức - TP.HCM' }
   ];
 
   const categories = [

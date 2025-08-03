@@ -23,6 +23,7 @@ import {
   ShoppingBag,
   CreditCard
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface SalesAnalytics {
   id: string;
@@ -521,6 +522,14 @@ const Manager: React.FC = () => {
               <Download className="w-5 h-5 mr-2" />
               Export PDF Report
             </button>
+            
+            <Link
+              to="/inventory"
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
+            >
+              <Package className="w-5 h-5 mr-2" />
+              Quản lý kho hàng
+            </Link>
           </div>
         </div>
 

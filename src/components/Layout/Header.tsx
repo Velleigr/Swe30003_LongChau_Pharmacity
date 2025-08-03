@@ -11,6 +11,7 @@ import {
   X, 
   FileText, 
   BarChart3,
+  Package,
   LogOut
 } from 'lucide-react';
 
@@ -92,6 +93,19 @@ const Header: React.FC = () => {
                     >
                       <BarChart3 className="w-4 h-4" />
                       <span>{user.role === 'manager' ? 'Quản lý' : 'Dược sĩ'}</span>
+                    </Link>
+                  )}
+                  {user.role === 'manager' && (
+                    <Link
+                      to="/inventory"
+                      className={`flex items-center space-x-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                        location.pathname === '/inventory'
+                          ? 'text-blue-600 bg-blue-50'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Package className="w-4 h-4" />
+                      <span>Kho hàng</span>
                     </Link>
                   )}
                   <div className="flex items-center space-x-2 text-sm">

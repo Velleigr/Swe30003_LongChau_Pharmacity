@@ -11,12 +11,10 @@ import {
   Filter,
   TrendingDown,
   TrendingUp,
-  Eye,
   Edit,
   CheckCircle,
   X,
   DollarSign,
-  Tag,
   BarChart3,
   Shield,
   AlertCircle,
@@ -44,26 +42,14 @@ interface InventoryItem {
   };
 }
 
-interface Product {
-  id: string;
-  name: string;
-  description: string | null;
-  price: number;
-  category: string;
-  image_url: string | null;
-  is_prescription_required: boolean;
-  stock_quantity: number;
-}
-
 const Inventory: React.FC = () => {
   const { user } = useAuth();
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedBranch, setSelectedBranch] = useState<string>('all');
-  const [sortBy, setSortBy] = useState<'name' | 'quantity' | 'price' | 'stock'>('name');
+  const [sortBy, setSortBy] = useState<'name' | 'quantity' | 'price'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [editingStock, setEditingStock] = useState<string | null>(null);
   const [newStockValue, setNewStockValue] = useState<number>(0);
@@ -92,7 +78,7 @@ const Inventory: React.FC = () => {
     { id: 'Antibiotics', name: 'Kháng sinh' }
   ];
 
-  // Check if user is manager
+  // Check if user is manager or pharmacist
   if (!user || (user.role !== 'manager' && user.role !== 'pharmacist')) {
     return <Navigate to="/login" replace />;
   }
@@ -218,7 +204,6 @@ const Inventory: React.FC = () => {
 
   const lowStockItems = filteredInventory.filter(item => item.quantity <= item.min_threshold);
   const outOfStockItems = filteredInventory.filter(item => item.quantity === 0);
-  const normalStockItems = filteredInventory.filter(item => item.quantity > item.min_threshold);
 
   const totalProducts = filteredInventory.length;
   const totalValue = filteredInventory.reduce((sum, item) => sum + (item.products.price * item.quantity), 0);
@@ -276,38 +261,30 @@ const Inventory: React.FC = () => {
       
       <td className="py-4 px-6">
         {editingStock === item.id ? (
-          <div className="relative">
-            <div className="flex items-center space-x-2 mb-2">
-              <input
-                type="number"
-                value={newStockValue}
-                onChange={(e) => setNewStockValue(parseInt(e.target.value) || 0)}
-                className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                min="0"
-                placeholder="Số lượng"
-              />
-            </div>
-            <div className="absolute top-12 left-0 z-10 bg-white border border-gray-200 rounded-lg shadow-lg p-2 min-w-[120px]">
-              <div className="flex flex-col space-y-2">
-                <button
-                  onClick={() => handleStockUpdate(item.id, newStockValue)}
-                  className="flex items-center space-x-2 px-3 py-2 text-sm text-green-700 hover:bg-green-50 rounded-md transition-colors"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  <span>Lưu</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setEditingStock(null);
-                    setNewStockValue(0);
-                  }}
-                  className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                  <span>Hủy</span>
-                </button>
-              </div>
-            </div>
+          <div className="flex items-center space-x-2">
+            <input
+              type="number"
+              value={newStockValue}
+              onChange={(e) => setNewStockValue(parseInt(e.target.value) || 0)}
+              className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              min="0"
+              placeholder="Số lượng"
+            />
+            <button
+              onClick={() => handleStockUpdate(item.id, newStockValue)}
+              className="p-2 text-green-600 hover:bg-green-100 rounded transition-colors"
+            >
+              <CheckCircle className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => {
+                setEditingStock(null);
+                setNewStockValue(0);
+              }}
+              className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         ) : (
           <div className="flex items-center space-x-2">

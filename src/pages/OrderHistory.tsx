@@ -128,8 +128,10 @@ const OrderHistory: React.FC = () => {
   };
 
   const fetchPrescriptions = async () => {
-    if (!user) return;
-
+    if (!user) {
+      console.log("No user when fetching prescription")
+      return;
+    }
     try {
       const response = await api.prescriptions.getAll({ user_id: user.id });
 

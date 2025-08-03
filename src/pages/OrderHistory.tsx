@@ -133,6 +133,7 @@ const OrderHistory: React.FC = () => {
       return;
     }
     try {
+      setLoading(true);
       const response = await api.prescriptions.getAll({ user_id: user.id });
 
       if (response.error) {
@@ -144,6 +145,8 @@ const OrderHistory: React.FC = () => {
     } catch (error) {
       console.error('Error fetching prescriptions:', error);
       setError('Không thể tải danh sách đơn thuốc');
+    } finally{
+      setLoading(false);
     }
   };
 
@@ -189,7 +192,7 @@ const OrderHistory: React.FC = () => {
       );
     return matchesStatus && matchesSearch;
   });
-
+  console.log(prescriptions)
   const filteredPrescriptions = prescriptions.filter(prescription => {
     const matchesStatus = prescriptionStatusFilter === 'all' || prescription.status === prescriptionStatusFilter;
     const matchesSearch = prescriptionSearchTerm === '' || 

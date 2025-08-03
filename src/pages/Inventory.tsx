@@ -13,8 +13,8 @@ import {
   TrendingUp,
   Eye,
   Edit,
-  Plus,
-  Minus,
+  CheckCircle,
+  X,
   DollarSign,
   Tag,
   BarChart3,
@@ -181,29 +181,38 @@ const Inventory: React.FC = () => {
       
       <td className="py-4 px-6">
         {editingStock === product.id ? (
-          <div className="flex items-center space-x-2">
-            <input
-              type="number"
-              value={newStockValue}
-              onChange={(e) => setNewStockValue(parseInt(e.target.value) || 0)}
-              className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              min="0"
-            />
-            <button
-              onClick={() => handleStockUpdate(product.id, newStockValue)}
-              className="p-1 text-green-600 hover:bg-green-100 rounded"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
-            <button
-              onClick={() => {
-                setEditingStock(null);
-                setNewStockValue(0);
-              }}
-              className="p-1 text-gray-600 hover:bg-gray-100 rounded"
-            >
-              <Minus className="w-4 h-4" />
-            </button>
+          <div className="relative">
+            <div className="flex items-center space-x-2 mb-2">
+              <input
+                type="number"
+                value={newStockValue}
+                onChange={(e) => setNewStockValue(parseInt(e.target.value) || 0)}
+                className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                min="0"
+                placeholder="Số lượng"
+              />
+            </div>
+            <div className="absolute top-12 left-0 z-10 bg-white border border-gray-200 rounded-lg shadow-lg p-2 min-w-[120px]">
+              <div className="flex flex-col space-y-2">
+                <button
+                  onClick={() => handleStockUpdate(product.id, newStockValue)}
+                  className="flex items-center space-x-2 px-3 py-2 text-sm text-green-700 hover:bg-green-50 rounded-md transition-colors"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  <span>Lưu</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setEditingStock(null);
+                    setNewStockValue(0);
+                  }}
+                  className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                  <span>Hủy</span>
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="flex items-center space-x-2">

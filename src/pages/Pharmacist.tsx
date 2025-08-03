@@ -126,8 +126,8 @@ const Pharmacist: React.FC = () => {
           setOrders(ordersData || []);
         }
 
-        // Fetch prescriptions
-        const prescriptionsResponse = await fetch(`${supabaseUrl}/rest/v1/prescriptions?select=*,users(full_name,email,phone,address)&order=created_at.desc&limit=50`, {
+        // Fetch prescriptions assigned to this pharmacist only
+        const prescriptionsResponse = await fetch(`${supabaseUrl}/rest/v1/prescriptions?select=*,users(full_name,email,phone,address)&pharmacist_id=eq.${user.id}&order=created_at.desc&limit=50`, {
           headers: {
             'apikey': supabaseKey,
             'Authorization': `Bearer ${supabaseKey}`,

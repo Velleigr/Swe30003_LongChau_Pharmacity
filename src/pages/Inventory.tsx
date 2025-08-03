@@ -91,42 +91,59 @@ const Inventory: React.FC = () => {
     try {
       setLoading(true);
       
-      let query = supabase
+      // First get inventory data
+      let inventoryQuery = supabase
         .from('inventory')
-        .select(`
-          *,
-          products (
-            id,
-            name,
-            description,
-            price,
-            category,
-            image_url,
-            is_prescription_required
-          )
-        `);
+        .select('*');
       
       // Filter by branch if not 'all'
       if (selectedBranch !== 'all') {
-        query = query.eq('branch', selectedBranch);
+        inventoryQuery = inventoryQuery.eq('branch', selectedBranch);
       }
       
       // If user is pharmacist, only show their branch
       if (user.role === 'pharmacist' && user.branch) {
-        query = query.eq('branch', user.branch);
+        inventoryQuery = inventoryQuery.eq('branch', user.branch);
         setSelectedBranch(user.branch);
       }
       
-      query = query.order('last_updated', { ascending: false });
+      inventoryQuery = inventoryQuery.order('last_updated', { ascending: false });
       
-      const { data, error } = await query;
+      const { data: inventoryData, error: inventoryError } = await inventoryQuery;
 
-      if (error) {
-        console.error('Error fetching inventory:', error);
+      if (inventoryError) {
+        console.error('Error fetching inventory:', inventoryError);
         setInventory([]);
-      } else {
-        setInventory(data || []);
+        return;
       }
+
+      if (!inventoryData || inventoryData.length === 0) {
+        setInventory([]);
+        return;
+      }
+
+      // Get unique product IDs
+      const productIds = [...new Set(inventoryData.map(item => item.product_id))];
+      
+      // Fetch products separately
+      const { data: productsData, error: productsError } = await supabase
+        .from('products')
+        .select('id, name, description, price, category, image_url, is_prescription_required')
+        .in('id', productIds);
+
+      if (productsError) {
+        console.error('Error fetching products:', productsError);
+        setInventory([]);
+        return;
+      }
+
+      // Combine inventory and product data
+      const combinedData = inventoryData.map(inventoryItem => ({
+        ...inventoryItem,
+        products: productsData?.find(product => product.id === inventoryItem.product_id) || null
+      })).filter(item => item.products !== null);
+
+      setInventory(combinedData);
     } catch (error) {
       console.error('Error fetching inventory:', error);
       setInventory([]);

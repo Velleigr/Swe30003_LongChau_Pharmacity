@@ -187,12 +187,17 @@ const Prescription: React.FC = () => {
         });
         
         if (!notificationResponse.error) {
-          setNotificationMessage(`Email đã được gửi đến dược sĩ ${selectedPharmacist?.full_name || 'được chỉ định'}`);
+          setNotificationMessage(`✅ Email thông báo đã được gửi thành công đến dược sĩ ${selectedPharmacist?.full_name || 'được chỉ định'} (${notificationResponse.pharmacist_email})`);
+          setShowNotification(true);
+        } else {
+          setNotificationMessage(`⚠️ Không thể gửi email thông báo: ${notificationResponse.error}`);
           setShowNotification(true);
         }
       } catch (emailError) {
         // Don't fail the main operation if email fails
         console.error('Failed to send email notification:', emailError);
+        setNotificationMessage('⚠️ Có lỗi xảy ra khi gửi email thông báo, nhưng đơn thuốc đã được lưu thành công');
+        setShowNotification(true);
       }
 
       setPrescriptionId(response.data.id);

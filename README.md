@@ -29,3 +29,8 @@ If you encounter "Failed to fetch" errors:
 The following environment variables are required:
 - `VITE_SUPABASE_URL`: Your Supabase project URL
 - `VITE_SUPABASE_ANON_KEY`: Your Supabase public API key
+
+### Email Configuration (for prescription notifications)
+- `GMAIL_USER`: Gmail account for sending notifications
+- `GMAIL_PASSWORD`: Gmail app password or account password
+- `GMAIL_FROM_NAME`: Display name for outgoing emails

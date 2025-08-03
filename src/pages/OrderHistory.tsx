@@ -192,7 +192,7 @@ const OrderHistory: React.FC = () => {
       );
     return matchesStatus && matchesSearch;
   });
-  console.log(prescriptions)
+  console.error(prescriptions)
   const filteredPrescriptions = prescriptions.filter(prescription => {
     const matchesStatus = prescriptionStatusFilter === 'all' || prescription.status === prescriptionStatusFilter;
     const matchesSearch = prescriptionSearchTerm === '' || 

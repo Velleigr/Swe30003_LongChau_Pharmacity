@@ -67,6 +67,7 @@ const Manager: React.FC = () => {
   const { user, login } = useAuth();
   const [loading, setLoading] = useState(true);
   const [analytics, setAnalytics] = useState<SalesAnalytics[]>([]);
+  const [filteredAnalytics, setFilteredAnalytics] = useState<SalesAnalytics[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -78,6 +79,7 @@ const Manager: React.FC = () => {
     username: '',
     password: ''
   });
+  const [timePeriod, setTimePeriod] = useState<string>('30days');
 
   useEffect(() => {
     if (user && user.role === 'manager') {
@@ -89,6 +91,33 @@ const Manager: React.FC = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    // Filter analytics based on selected time period
+    const filterAnalyticsByPeriod = () => {
+      const now = new Date();
+      let startDate: Date;
+
+      switch (timePeriod) {
+        case '7days':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30days':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        case '90days':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startDate = new Date(0); // All time
+      }
+
+      const filtered = analytics.filter(item => new Date(item.date) >= startDate);
+      setFilteredAnalytics(filtered);
+    };
+
+    filterAnalyticsByPeriod();
+  }, [analytics, timePeriod]);
+
   const fetchAnalytics = async () => {
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -98,13 +127,33 @@ const Manager: React.FC = () => {
         throw new Error('Supabase configuration missing');
       }
 
-      const response = await fetch(`${supabaseUrl}/rest/v1/sales_analytics?select=*&order=date.desc&limit=30`, {
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
-          'Content-Type': 'application/json'
+      // Determine date range for query based on timePeriod
+      const now = new Date();
+      let startDate: string;
+      switch (timePeriod) {
+        case '7days':
+          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+          break;
+        case '30days':
+          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+          break;
+        case '90days':
+          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
+          break;
+        default:
+          startDate = new Date(0).toISOString(); // All time
+      }
+
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/sales_analytics?select=*&date=gte.${startDate}&order=date.desc`,
+        {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json'
+          }
         }
-      });
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -112,9 +161,11 @@ const Manager: React.FC = () => {
 
       const data = await response.json();
       setAnalytics(data || []);
+      setFilteredAnalytics(data || []);
     } catch (error) {
       console.error('Error fetching analytics:', error);
       setAnalytics([]);
+      setFilteredAnalytics([]);
       setFetchError('Failed to fetch analytics data');
     }
   };
@@ -128,13 +179,16 @@ const Manager: React.FC = () => {
         throw new Error('Supabase configuration missing');
       }
 
-      const response = await fetch(`${supabaseUrl}/rest/v1/orders?select=*,order_items(*,products(name)),users(full_name,email,phone)&order=created_at.desc&limit=50`, {
-        headers: {
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${supabaseKey}`,
-          'Content-Type': 'application/json'
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/orders?select=*,order_items(*,products(name)),users(full_name,email,phone)&order=created_at.desc&limit=50`,
+        {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json'
+          }
         }
-      });
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
@@ -189,6 +243,11 @@ const Manager: React.FC = () => {
     setLoginForm(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleTimePeriodChange = (period: string) => {
+    setTimePeriod(period);
+    fetchAnalytics(); // Re-fetch data for the new time period
+  };
+
   const generatePDFReport = () => {
     const doc = new jsPDF();
     
@@ -232,13 +291,7 @@ const Manager: React.FC = () => {
     let yPos = 175;
     Object.entries(statusCounts).forEach(([status, count]) => {
       const percentage = ((count / actualTotalOrders) * 100).toFixed(1);
-      const statusEN = status === 'pending' ? 'Pending' :
-                      status === 'confirmed' ? 'Confirmed' :
-                      status === 'preparing' ? 'Preparing' :
-                      status === 'packed' ? 'Packed' :
-                      status === 'shipped' ? 'Shipped' :
-                      status === 'delivered' ? 'Delivered' :
-                      status === 'cancelled' ? 'Cancelled' : status;
+      const statusEN = statusTranslations[status] || status;
       doc.text(`• ${statusEN}: ${count} orders (${percentage}%)`, 25, yPos);
       yPos += 10;
     });
@@ -270,11 +323,11 @@ const Manager: React.FC = () => {
     
     doc.line(20, yPosition - 5, 200, yPosition - 5);
     
-    orders.slice(0, 25).forEach((order, index) => {
+    orders.slice(0, 25).forEach((order) => {
       const orderId = order.id.slice(0, 8);
       const customerName = order.users.full_name || 'Customer';
       const amount = `$${order.total_amount.toLocaleString('en-US')}`;
-      const statusEN = statusTranslations[order.status] || status;
+      const statusEN = statusTranslations[order.status] || order.status;
       const date = new Date(order.created_at).toLocaleDateString('en-US');
       
       doc.setFontSize(8);
@@ -465,13 +518,8 @@ const Manager: React.FC = () => {
     );
   }
 
-  const totalSales = analytics.length > 0 ? analytics.reduce((sum, item) => sum + item.total_sales, 0) : 0;
+  const totalSales = filteredAnalytics.length > 0 ? filteredAnalytics.reduce((sum, item) => sum + item.total_sales, 0) : 0;
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
-
-  // Fallback data for chart if analytics is empty
-  const chartData = analytics.length > 0 ? analytics : [
-    { date: new Date().toISOString().split('T')[0], total_sales: 0 }
-  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -529,6 +577,23 @@ const Manager: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Time Period Selector */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Select Time Period
+          </label>
+          <select
+            value={timePeriod}
+            onChange={(e) => handleTimePeriodChange(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="7days">Last 7 Days</option>
+            <option value="30days">Last 30 Days</option>
+            <option value="90days">Last 90 Days</option>
+            <option value="all">All Time</option>
+          </select>
+        </div>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -612,10 +677,16 @@ const Manager: React.FC = () => {
         {/* Charts and Analytics */}
         <div className="space-y-8">
           {/* Revenue Analytics Chart */}
-          <RevenueChart 
-            data={chartData} 
-            loading={loading}
-          />
+          {filteredAnalytics.length === 0 ? (
+            <div className="bg-white rounded-xl shadow-lg p-6 text-center">
+              <p className="text-gray-600">No analytics data available for the selected period.</p>
+            </div>
+          ) : (
+            <RevenueChart 
+              data={filteredAnalytics} 
+              loading={loading}
+            />
+          )}
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Recent Orders */}

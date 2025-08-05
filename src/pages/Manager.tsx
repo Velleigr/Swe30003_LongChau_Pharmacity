@@ -70,8 +70,10 @@ const Manager: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
+  const [totalCustomers, setTotalCustomers] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginError, setLoginError] = useState('');
+  const [fetchError, setFetchError] = useState('');
   const [loginForm, setLoginForm] = useState<LoginForm>({
     username: '',
     password: ''
@@ -89,13 +91,11 @@ const Manager: React.FC = () => {
 
   const fetchAnalytics = async () => {
     try {
-      // Use direct Supabase query for analytics since it's manager-specific
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       
       if (!supabaseUrl || !supabaseKey) {
-        console.error('Supabase not configured');
-        return;
+        throw new Error('Supabase configuration missing');
       }
 
       const response = await fetch(`${supabaseUrl}/rest/v1/sales_analytics?select=*&order=date.desc&limit=30`, {
@@ -115,18 +115,17 @@ const Manager: React.FC = () => {
     } catch (error) {
       console.error('Error fetching analytics:', error);
       setAnalytics([]);
+      setFetchError('Failed to fetch analytics data');
     }
   };
 
   const fetchOrders = async () => {
     try {
-      // Fetch recent orders for all users (manager can see all)
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       
       if (!supabaseUrl || !supabaseKey) {
-        console.error('Supabase not configured');
-        return;
+        throw new Error('Supabase configuration missing');
       }
 
       const response = await fetch(`${supabaseUrl}/rest/v1/orders?select=*,order_items(*,products(name)),users(full_name,email,phone)&order=created_at.desc&limit=50`, {
@@ -148,9 +147,14 @@ const Manager: React.FC = () => {
       const total = data.reduce((sum: number, order: Order) => sum + order.total_amount, 0);
       setTotalRevenue(total);
       setTotalOrders(data.length);
+      
+      // Calculate unique customers
+      const uniqueCustomers = new Set(data.map((order: Order) => order.user_id)).size;
+      setTotalCustomers(uniqueCustomers);
     } catch (error) {
       console.error('Error fetching orders:', error);
       setOrders([]);
+      setFetchError('Failed to fetch orders data');
     } finally {
       setLoading(false);
     }
@@ -162,7 +166,6 @@ const Manager: React.FC = () => {
     
     const success = await login(loginForm.username, loginForm.password);
     if (success) {
-      // Re-fetch user data to check role
       setTimeout(() => {
         const storedUser = localStorage.getItem('pharmacy_user');
         if (storedUser) {
@@ -189,26 +192,20 @@ const Manager: React.FC = () => {
   const generatePDFReport = () => {
     const doc = new jsPDF();
     
-    // Set font to Arial which supports both English and Vietnamese characters
     doc.setFont('arial', 'normal');
-    
-    // Header
     doc.setFontSize(20);
     doc.text('COMPREHENSIVE REPORT - LONG CHAU PHARMACY', 20, 20);
     
-    // Report info
     doc.setFontSize(12);
     doc.text(`Created by: ${user?.full_name || user?.username}`, 20, 35);
     doc.text(`Export date: ${new Date().toLocaleDateString('en-US')} ${new Date().toLocaleTimeString('en-US')}`, 20, 45);
     doc.text(`Period: ${orders.length > 0 ? `${new Date(orders[orders.length - 1].created_at).toLocaleDateString('en-US')} - ${new Date(orders[0].created_at).toLocaleDateString('en-US')}` : 'No data available'}`, 20, 55);
     
-    // Executive Summary - Use actual order data
     const actualTotalRevenue = orders.reduce((sum, order) => sum + order.total_amount, 0);
     const actualTotalOrders = orders.length;
     const uniqueCustomers = new Set(orders.map(order => order.user_id)).size;
     const avgOrderValue = actualTotalOrders > 0 ? actualTotalRevenue / actualTotalOrders : 0;
     
-    // Calculate daily averages from actual orders
     const orderDates = orders.map(order => new Date(order.created_at).toDateString());
     const uniqueDays = new Set(orderDates).size;
     const avgDailyRevenue = uniqueDays > 0 ? actualTotalRevenue / uniqueDays : 0;
@@ -224,7 +221,6 @@ const Manager: React.FC = () => {
     doc.text(`• Daily Average Revenue: $${avgDailyRevenue.toLocaleString('en-US')}`, 25, 130);
     doc.text(`• Daily Average Orders: ${avgDailyOrders.toFixed(1)} orders`, 25, 140);
     
-    // Order Status Analysis
     const statusCounts = orders.reduce((acc, order) => {
       acc[order.status] = (acc[order.status] || 0) + 1;
       return acc;
@@ -247,7 +243,6 @@ const Manager: React.FC = () => {
       yPos += 10;
     });
     
-    // Recent Performance Analysis
     const last7Days = new Date();
     last7Days.setDate(last7Days.getDate() - 7);
     const recentOrders = orders.filter(order => new Date(order.created_at) >= last7Days);
@@ -260,7 +255,6 @@ const Manager: React.FC = () => {
     doc.text(`• Revenue last 7 days: $${recentRevenue.toLocaleString('en-US')}`, 25, yPos + 35);
     doc.text(`• Average orders/day: ${(recentOrders.length / 7).toFixed(1)} orders`, 25, yPos + 45);
     
-    // New page for detailed data
     doc.addPage();
     doc.setFontSize(14);
     doc.text('4. RECENT ORDER DETAILS', 20, 20);
@@ -274,20 +268,13 @@ const Manager: React.FC = () => {
     doc.text('Date', 180, yPosition);
     yPosition += 10;
     
-    // Draw line
     doc.line(20, yPosition - 5, 200, yPosition - 5);
     
     orders.slice(0, 25).forEach((order, index) => {
       const orderId = order.id.slice(0, 8);
       const customerName = order.users.full_name || 'Customer';
       const amount = `$${order.total_amount.toLocaleString('en-US')}`;
-      const statusEN = order.status === 'pending' ? 'Pending' :
-                      order.status === 'confirmed' ? 'Confirmed' :
-                      order.status === 'preparing' ? 'Preparing' :
-                      order.status === 'packed' ? 'Packed' :
-                      order.status === 'shipped' ? 'Shipped' :
-                      order.status === 'delivered' ? 'Delivered' :
-                      order.status === 'cancelled' ? 'Cancelled' : order.status;
+      const statusEN = statusTranslations[order.status] || status;
       const date = new Date(order.created_at).toLocaleDateString('en-US');
       
       doc.setFontSize(8);
@@ -298,14 +285,12 @@ const Manager: React.FC = () => {
       doc.text(date, 180, yPosition);
       yPosition += 10;
       
-      // Add new page if needed
       if (yPosition > 270) {
         doc.addPage();
         yPosition = 20;
       }
     });
     
-    // Footer on last page
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
@@ -329,12 +314,10 @@ const Manager: React.FC = () => {
     doc.text(`Created by: ${user?.full_name || user?.username}`, 20, 35);
     doc.text(`Export date: ${new Date().toLocaleDateString('en-US')}`, 20, 45);
     
-    // Use actual order data for customer analysis
     const uniqueCustomers = new Set(orders.map(order => order.user_id)).size;
     const totalOrdersCount = orders.length;
     const avgOrdersPerCustomer = uniqueCustomers > 0 ? totalOrdersCount / uniqueCustomers : 0;
     
-    // Customer with most orders
     const customerOrderCounts = orders.reduce((acc, order) => {
       const customerId = order.user_id;
       acc[customerId] = (acc[customerId] || 0) + 1;
@@ -368,7 +351,6 @@ const Manager: React.FC = () => {
     doc.text(`Created by: ${user?.full_name || user?.username}`, 20, 35);
     doc.text(`Export date: ${new Date().toLocaleDateString('en-US')}`, 20, 45);
     
-    // Calculate trends from actual orders
     const now = new Date();
     const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const previous7Days = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
@@ -397,7 +379,16 @@ const Manager: React.FC = () => {
     doc.save(`trend-report-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
-  // Login screen
+  const statusTranslations: Record<string, string> = {
+    pending: 'Chờ xử lý',
+    confirmed: 'Confirmed',
+    preparing: 'Preparing',
+    packed: 'Packed',
+    shipped: 'Shipped',
+    delivered: 'Delivered',
+    cancelled: 'Cancelled'
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -461,29 +452,6 @@ const Manager: React.FC = () => {
               Đăng nhập
             </button>
           </form>
-          <div className="flex space-x-3 mt-4">
-                <button
-                  onClick={generatePDFReport}
-                  className="bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition-colors inline-flex items-center text-sm"
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  Comprehensive Report
-                </button>
-                <button
-                  onClick={generateCustomerReport}
-                  className="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center text-sm"
-                >
-                  <Users2 className="w-4 h-4 mr-2" />
-                  Customer Report
-                </button>
-                <button
-                  onClick={generateTrendReport}
-                  className="bg-purple-600 text-white px-3 py-2 rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center text-sm"
-                >
-                  <TrendingDown className="w-4 h-4 mr-2" />
-                  Trend Report
-                </button>
-              </div>
         </div>
       </div>
     );
@@ -497,16 +465,20 @@ const Manager: React.FC = () => {
     );
   }
 
-  const totalSales = analytics.reduce((sum, item) => sum + item.total_sales, 0);
-  const totalCustomers = analytics.reduce((sum, item) => sum + item.total_customers, 0);
+  const totalSales = analytics.length > 0 ? analytics.reduce((sum, item) => sum + item.total_sales, 0) : 0;
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+
+  // Fallback data for chart if analytics is empty
+  const chartData = analytics.length > 0 ? analytics : [
+    { date: new Date().toISOString().split('T')[0], total_sales: 0 }
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 Management Dashboard
@@ -515,24 +487,48 @@ const Manager: React.FC = () => {
                 Long Chau business performance overview
               </p>
             </div>
-            
-            <button
-              onClick={generatePDFReport}
-              className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors inline-flex items-center"
-            >
-              <Download className="w-5 h-5 mr-2" />
-              Export PDF Report
-            </button>
-            
-            <Link
-              to="/inventory"
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
-            >
-              <Package className="w-5 h-5 mr-2" />
-              Quản lý kho hàng
-            </Link>
+            <div className="flex space-x-3">
+              <button
+                onClick={generatePDFReport}
+                className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors inline-flex items-center"
+              >
+                <FileText className="w-5 h-5 mr-2" />
+                Comprehensive Report
+              </button>
+              <button
+                onClick={generateCustomerReport}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
+              >
+                <Users2 className="w-5 h-5 mr-2" />
+                Customer Report
+              </button>
+              <button
+                onClick={generateTrendReport}
+                className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center"
+              >
+                <TrendingDown className="w-5 h-5 mr-2" />
+                Trend Report
+              </button>
+              <Link
+                to="/inventory"
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
+              >
+                <Package className="w-5 h-5 mr-2" />
+                Quản lý kho hàng
+              </Link>
+            </div>
           </div>
         </div>
+
+        {/* Error Message */}
+        {fetchError && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-6">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+              <span className="text-red-800 text-sm">{fetchError}</span>
+            </div>
+          </div>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -617,179 +613,124 @@ const Manager: React.FC = () => {
         <div className="space-y-8">
           {/* Revenue Analytics Chart */}
           <RevenueChart 
-            data={analytics} 
+            data={chartData} 
             loading={loading}
           />
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Recent Orders */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="bg-white rounded-xl shadow-lg p-6"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Recent Orders</h2>
-              <ShoppingBag className="w-6 h-6 text-blue-600" />
-            </div>
-            
-            <div className="space-y-4">
-              {orders.slice(0, 5).map((order) => (
-                <div key={order.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Package className="w-5 h-5 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-gray-900">
-                        {order.users.full_name || 'Customer'}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {order.order_items.length} products • {new Date(order.created_at).toLocaleDateString('en-US')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-blue-600">
-                      ${order.total_amount.toLocaleString()}
-                    </p>
-                    <p className={`text-xs px-2 py-1 rounded-full ${
-                      order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                      order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>
-                      {order.status === 'pending' ? 'Chờ xử lý' :
-                       order.status === 'confirmed' ? 'Confirmed' :
-                       order.status === 'preparing' ? 'Preparing' :
-                       order.status === 'packed' ? 'Packed' :
-                       order.status === 'shipped' ? 'Shipped' :
-                       order.status === 'delivered' ? 'Delivered' :
-                       order.status === 'cancelled' ? 'Cancelled' : order.status}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-
-          {/* Sales Analytics */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.5 }}
-            className="bg-white rounded-xl shadow-lg p-6"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-gray-900">Revenue Analysis</h2>
-              <BarChart3 className="w-6 h-6 text-purple-600" />
-            </div>
-            
-            <div className="space-y-4">
-              {analytics.slice(0, 7).map((item, index) => (
-                <div key={item.id} className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
-                      <Calendar className="w-4 h-4 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {new Date(item.date).toLocaleDateString('en-US')}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {item.total_orders} orders • {item.total_customers} customers
-                      </p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-gray-900">
-                      ${item.total_sales.toLocaleString()}
-                    </p>
-                    <p className={`text-xs px-2 py-1 rounded-full ${
-                      item.popular_category === 'Heart' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {item.popular_category === 'Heart' ? 'Heart Care' : 'Skin Care'}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        </div>
-
-        {/* All Orders Table */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.7 }}
-          className="bg-white rounded-xl shadow-lg p-6 mt-8"
-        >
-          <h2 className="text-xl font-bold text-gray-900 mb-6">
-            All Orders
-          </h2>
-          
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Order ID</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Customer</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Products</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Total</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
-                  <th className="text-left py-3 px-4 font-medium text-gray-700">Order Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {orders.slice(0, 20).map((order) => (
-                  <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 text-gray-900">
-                      <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                        {order.id.slice(0, 8)}
-                      </code>
-                    </td>
-                    <td className="py-3 px-4 text-gray-900">
-                      <div>
-                        <p className="font-medium">{order.users.full_name || 'Customer'}</p>
-                        <p className="text-sm text-gray-500">{order.users.email}</p>
+            {/* Recent Orders */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="bg-white rounded-xl shadow-lg p-6"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Recent Orders</h2>
+                <ShoppingBag className="w-6 h-6 text-blue-600" />
+              </div>
+              
+              <div className="space-y-4">
+                {orders.slice(0, 5).map((order) => (
+                  <div key={order.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Package className="w-5 h-5 text-blue-600" />
                       </div>
-                    </td>
-                    <td className="py-3 px-4 text-gray-900">
                       <div>
-                        <p className="font-medium">{order.order_items.length} products</p>
-                        <p className="text-sm text-gray-500">
-                          {order.order_items.slice(0, 2).map(item => item.products.name).join(', ')}
-                          {order.order_items.length > 2 && '...'}
+                        <p className="font-semibold text-gray-900">
+                          {order.users.full_name || 'Customer'}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {order.order_items.length} products • {new Date(order.created_at).toLocaleDateString('en-US')}
                         </p>
                       </div>
-                    </td>
-                    <td className="py-3 px-4 text-gray-900 font-medium">
-                      ${order.total_amount.toLocaleString()}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold text-blue-600">
+                        ${order.total_amount.toLocaleString()}
+                      </p>
+                      <p className={`text-xs px-2 py-1 rounded-full ${
                         order.status === 'delivered' ? 'bg-green-100 text-green-800' :
                         order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                         'bg-blue-100 text-blue-800'
                       }`}>
-                        {order.status === 'pending' ? 'Chờ xử lý' :
-                         order.status === 'confirmed' ? 'Confirmed' :
-                         order.status === 'preparing' ? 'Preparing' :
-                         order.status === 'packed' ? 'Packed' :
-                         order.status === 'shipped' ? 'Shipped' :
-                         order.status === 'delivered' ? 'Delivered' :
-                         order.status === 'cancelled' ? 'Cancelled' : order.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-gray-900">
-                      {new Date(order.created_at).toLocaleDateString('en-US')}
-                    </td>
-                  </tr>
+                        {statusTranslations[order.status] || order.status}
+                      </p>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </motion.div>
+
+            {/* All Orders Table */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.7 }}
+              className="bg-white rounded-xl shadow-lg p-6"
+            >
+              <h2 className="text-xl font-bold text-gray-900 mb-6">
+                All Orders
+              </h2>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Order ID</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Customer</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Products</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Total</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
+                      <th className="text-left py-3 px-4 font-medium text-gray-700">Order Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orders.slice(0, 20).map((order) => (
+                      <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-3 px-4 text-gray-900">
+                          <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                            {order.id.slice(0, 8)}
+                          </code>
+                        </td>
+                        <td className="py-3 px-4 text-gray-900">
+                          <div>
+                            <p className="font-medium">{order.users.full_name || 'Customer'}</p>
+                            <p className="text-sm text-gray-500">{order.users.email}</p>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-gray-900">
+                          <div>
+                            <p className="font-medium">{order.order_items.length} products</p>
+                            <p className="text-sm text-gray-500">
+                              {order.order_items.slice(0, 2).map(item => item.products.name).join(', ')}
+                              {order.order_items.length > 2 && '...'}
+                            </p>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-gray-900 font-medium">
+                          ${order.total_amount.toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                            order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                            'bg-blue-100 text-blue-800'
+                          }`}>
+                            {statusTranslations[order.status] || order.status}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-gray-900">
+                          {new Date(order.created_at).toLocaleDateString('en-US')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </motion.div>
           </div>
-        </motion.div>
         </div>
       </div>
     </div>

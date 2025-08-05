@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { DollarSign } from 'lucide-react';
 
@@ -46,13 +46,14 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ data, loading = false }) =>
 
             return (
               <div key={item.date} className="flex flex-col items-center space-y-2 min-w-0 flex-1">
-                {/* Line Chart Point */}
+                {/* Bar Chart */}
                 <div className="relative flex-1 flex items-end w-full max-w-12">
                   <motion.div
-                    initial={{ scale: 0, y: 0 }}
-                    animate={{ scale: 1, y: `-${height}%` }}
+                    initial={{ height: 0 }}
+                    animate={{ height: `${height}%` }}
                     transition={{ duration: 0.8, delay: index * 0.1 }}
-                    className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-3 h-3 bg-blue-600 rounded-full group cursor-pointer hover:bg-blue-700 transition-colors z-10"
+                    className="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-md relative group cursor-pointer hover:from-blue-700 hover:to-blue-500 transition-colors"
+                    style={{ minHeight: '4px' }}
                   >
                     {/* Tooltip */}
                     <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">
@@ -62,25 +63,6 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ data, loading = false }) =>
                       </div>
                     </div>
                   </motion.div>
-
-                  {/* Line Connection */}
-                  {index < data.length - 1 && (
-                    <motion.div
-                      initial={{ scaleX: 0 }}
-                      animate={{ scaleX: 1 }}
-                      transition={{ duration: 0.8, delay: (index + 0.5) * 0.1 }}
-                      className="absolute bottom-0 left-1/2 w-full h-0.5 bg-blue-600 origin-left"
-                      style={{
-                        transform: `translateY(-${height}%) rotate(${
-                          Math.atan2(
-                            ((data[index + 1].revenue / maxRevenue) * 100) - height,
-                            100 / data.length
-                          ) * (180 / Math.PI)
-                        }deg)`,
-                        transformOrigin: 'left center'
-                      }}
-                    />
-                  )}
                 </div>
 
                 {/* Period Label */}

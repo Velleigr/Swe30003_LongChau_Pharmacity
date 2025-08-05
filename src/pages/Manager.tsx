@@ -715,6 +715,7 @@ const Manager: React.FC = () => {
               ))}
             </div>
           </motion.div>
+          </div>
         </div>
 
         {/* All Orders Table */}

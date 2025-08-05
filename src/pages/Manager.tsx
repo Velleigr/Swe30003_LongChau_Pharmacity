@@ -4,6 +4,7 @@ import { Navigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import RevenueChart from '../components/ui/RevenueChart';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import {

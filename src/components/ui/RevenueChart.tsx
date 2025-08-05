@@ -50,7 +50,7 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ data, loading = false }) =>
                 <div className="relative flex-1 flex items-end w-full max-w-24 min-w-20">
                   <motion.div
                     initial={{ height: 0, scale: 1 }}
-                    animate={{ height: 90, scale: 1 }}
+                    animate={{ height: ${height}, scale: 1 }}
                     whileHover={{ scale: 1.05 }}
                     transition={{ duration: 0.8, delay: index * 0.1 }}
                     className="w-full bg-gradient-to-t from-blue-600 to-blue-400 border border-blue-700 rounded-t-md relative group cursor-pointer hover:from-blue-700 hover:to-blue-500 transition-colors"

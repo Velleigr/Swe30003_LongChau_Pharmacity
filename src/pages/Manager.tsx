@@ -4,6 +4,7 @@ import { Navigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import RevenueChart from '../components/ui/RevenueChart';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import {
@@ -613,7 +614,14 @@ const Manager: React.FC = () => {
         </div>
 
         {/* Charts and Analytics */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-8">
+          {/* Revenue Analytics Chart */}
+          <RevenueChart 
+            data={analytics} 
+            loading={loading}
+          />
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Recent Orders */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}

@@ -1,48 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Navigate } from 'react-router-dom';
-import { api } from '../lib/api';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import RevenueChart from '../components/ui/RevenueChart';
-import html2canvas from 'html2canvas';
-import jsPDF from 'jspdf';
 import {
-  BarChart3,
-  Users,
-  Package,
-  TrendingUp,
-  Download,
-  Eye,
-  Calendar,
   DollarSign,
+  ShoppingBag,
+  Users,
+  CreditCard,
   Lock,
   AlertCircle,
-  FileText,
-  TrendingDown,
-  Users2,
-  ShoppingBag,
-  CreditCard
+  Package
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-
-interface SalesAnalytics {
-  id: string;
-  date: string;
-  total_sales: number;
-  total_orders: number;
-  total_customers: number;
-  popular_category: string | null;
-}
 
 interface Order {
   id: string;
   user_id: string;
   total_amount: number;
   status: string;
-  delivery_address: string | null;
   created_at: string;
-  updated_at: string;
   order_items: Array<{
     id: string;
     quantity: number;
@@ -54,7 +31,6 @@ interface Order {
   users: {
     full_name: string | null;
     email: string;
-    phone: string | null;
   };
 }
 
@@ -63,11 +39,14 @@ interface LoginForm {
   password: string;
 }
 
+interface ChartData {
+  date: string;
+  revenue: number;
+}
+
 const Manager: React.FC = () => {
   const { user, login } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [analytics, setAnalytics] = useState<SalesAnalytics[]>([]);
-  const [filteredAnalytics, setFilteredAnalytics] = useState<SalesAnalytics[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [totalOrders, setTotalOrders] = useState(0);
   const [totalRevenue, setTotalRevenue] = useState(0);
@@ -79,12 +58,12 @@ const Manager: React.FC = () => {
     username: '',
     password: ''
   });
-  const [timePeriod, setTimePeriod] = useState<string>('30days');
+  const [selectedMonth, setSelectedMonth] = useState('2025-08'); // Default to August 2025
+  const [chartData, setChartData] = useState<ChartData[]>([]);
 
   useEffect(() => {
     if (user && user.role === 'manager') {
       setIsAuthenticated(true);
-      fetchAnalytics();
       fetchOrders();
     } else {
       setLoading(false);
@@ -92,95 +71,64 @@ const Manager: React.FC = () => {
   }, [user]);
 
   useEffect(() => {
-    // Filter analytics based on selected time period
-    const filterAnalyticsByPeriod = () => {
-      const now = new Date();
-      let startDate: Date;
+    // Aggregate daily revenue from orders for the selected month
+    const aggregateDailyRevenue = () => {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const startDate = new Date(year, month - 1, 1); // First day of the month
+      const endDate = new Date(year, month, 0); // Last day of the month
 
-      switch (timePeriod) {
-        case '7days':
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case '30days':
-          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          break;
-        case '90days':
-          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-          break;
-        default:
-          startDate = new Date(0); // All time
+      // Filter orders for the selected month
+      const filteredOrders = orders.filter(order => {
+        const orderDate = new Date(order.created_at);
+        return orderDate >= startDate && orderDate <= endDate;
+      });
+
+      // Group by day and sum revenue
+      const dailyRevenue: Record<string, number> = {};
+      filteredOrders.forEach(order => {
+        const date = new Date(order.created_at).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+        dailyRevenue[date] = (dailyRevenue[date] || 0) + order.total_amount;
+      });
+
+      // Convert to chart data format
+      const data: ChartData[] = [];
+      for (let day = 1; day <= endDate.getDate(); day++) {
+        const dateStr = new Date(year, month - 1, day).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+        data.push({ date: dateStr, revenue: dailyRevenue[dateStr] || 0 });
       }
 
-      const filtered = analytics.filter(item => new Date(item.date) >= startDate);
-      setFilteredAnalytics(filtered);
+      setChartData(data);
     };
 
-    filterAnalyticsByPeriod();
-  }, [analytics, timePeriod]);
-
-  const fetchAnalytics = async () => {
-    try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
-      if (!supabaseUrl || !supabaseKey) {
-        throw new Error('Supabase configuration missing');
-      }
-
-      // Determine date range for query based on timePeriod
-      const now = new Date();
-      let startDate: string;
-      switch (timePeriod) {
-        case '7days':
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-          break;
-        case '30days':
-          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
-          break;
-        case '90days':
-          startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString();
-          break;
-        default:
-          startDate = new Date(0).toISOString(); // All time
-      }
-
-      const response = await fetch(
-        `${supabaseUrl}/rest/v1/sales_analytics?select=*&date=gte.${startDate}&order=date.desc`,
-        {
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json'
-          }
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      setAnalytics(data || []);
-      setFilteredAnalytics(data || []);
-    } catch (error) {
-      console.error('Error fetching analytics:', error);
-      setAnalytics([]);
-      setFilteredAnalytics([]);
-      setFetchError('Failed to fetch analytics data');
+    if (orders.length > 0) {
+      aggregateDailyRevenue();
     }
-  };
+  }, [orders, selectedMonth]);
 
   const fetchOrders = async () => {
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
+
       if (!supabaseUrl || !supabaseKey) {
         throw new Error('Supabase configuration missing');
       }
 
+      // Calculate date range for the selected month
+      const [year, month] = selectedMonth.split('-').map(Number);
+      const startDate = new Date(year, month - 1, 1).toISOString();
+      const endDate = new Date(year, month, 0, 23, 59, 59).toISOString();
+
       const response = await fetch(
-        `${supabaseUrl}/rest/v1/orders?select=*,order_items(*,products(name)),users(full_name,email,phone)&order=created_at.desc&limit=50`,
+        `${supabaseUrl}/rest/v1/orders?select=*,order_items(*,products(name)),users(full_name,email)&created_at=gte.${startDate}&created_at=lte.${endDate}&order=created_at.desc`,
         {
           headers: {
             'apikey': supabaseKey,
@@ -196,15 +144,12 @@ const Manager: React.FC = () => {
 
       const data = await response.json();
       setOrders(data || []);
-      
+
       // Calculate totals
       const total = data.reduce((sum: number, order: Order) => sum + order.total_amount, 0);
       setTotalRevenue(total);
       setTotalOrders(data.length);
-      
-      // Calculate unique customers
-      const uniqueCustomers = new Set(data.map((order: Order) => order.user_id)).size;
-      setTotalCustomers(uniqueCustomers);
+      setTotalCustomers(new Set(data.map((order: Order) => order.user_id)).size);
     } catch (error) {
       console.error('Error fetching orders:', error);
       setOrders([]);
@@ -217,7 +162,7 @@ const Manager: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
-    
+
     const success = await login(loginForm.username, loginForm.password);
     if (success) {
       setTimeout(() => {
@@ -226,7 +171,6 @@ const Manager: React.FC = () => {
           const userData = JSON.parse(storedUser);
           if (userData.role === 'manager') {
             setIsAuthenticated(true);
-            fetchAnalytics();
             fetchOrders();
           } else {
             setLoginError('Bạn không có quyền truy cập trang này');
@@ -243,193 +187,10 @@ const Manager: React.FC = () => {
     setLoginForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleTimePeriodChange = (period: string) => {
-    setTimePeriod(period);
-    fetchAnalytics(); // Re-fetch data for the new time period
-  };
-
-  const generatePDFReport = () => {
-    const doc = new jsPDF();
-    
-    doc.setFont('arial', 'normal');
-    doc.setFontSize(20);
-    doc.text('COMPREHENSIVE REPORT - LONG CHAU PHARMACY', 20, 20);
-    
-    doc.setFontSize(12);
-    doc.text(`Created by: ${user?.full_name || user?.username}`, 20, 35);
-    doc.text(`Export date: ${new Date().toLocaleDateString('en-US')} ${new Date().toLocaleTimeString('en-US')}`, 20, 45);
-    doc.text(`Period: ${orders.length > 0 ? `${new Date(orders[orders.length - 1].created_at).toLocaleDateString('en-US')} - ${new Date(orders[0].created_at).toLocaleDateString('en-US')}` : 'No data available'}`, 20, 55);
-    
-    const actualTotalRevenue = orders.reduce((sum, order) => sum + order.total_amount, 0);
-    const actualTotalOrders = orders.length;
-    const uniqueCustomers = new Set(orders.map(order => order.user_id)).size;
-    const avgOrderValue = actualTotalOrders > 0 ? actualTotalRevenue / actualTotalOrders : 0;
-    
-    const orderDates = orders.map(order => new Date(order.created_at).toDateString());
-    const uniqueDays = new Set(orderDates).size;
-    const avgDailyRevenue = uniqueDays > 0 ? actualTotalRevenue / uniqueDays : 0;
-    const avgDailyOrders = uniqueDays > 0 ? actualTotalOrders / uniqueDays : 0;
-    
-    doc.setFontSize(14);
-    doc.text('1. BUSINESS OVERVIEW', 20, 75);
-    doc.setFontSize(12);
-    doc.text(`• Total Revenue: $${actualTotalRevenue.toLocaleString('en-US')}`, 25, 90);
-    doc.text(`• Total Orders: ${actualTotalOrders.toLocaleString('en-US')} orders`, 25, 100);
-    doc.text(`• Total Customers: ${uniqueCustomers.toLocaleString('en-US')} customers`, 25, 110);
-    doc.text(`• Average Order Value: $${avgOrderValue.toLocaleString('en-US')}`, 25, 120);
-    doc.text(`• Daily Average Revenue: $${avgDailyRevenue.toLocaleString('en-US')}`, 25, 130);
-    doc.text(`• Daily Average Orders: ${avgDailyOrders.toFixed(1)} orders`, 25, 140);
-    
-    const statusCounts = orders.reduce((acc, order) => {
-      acc[order.status] = (acc[order.status] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    
-    doc.setFontSize(14);
-    doc.text('2. ORDER STATUS ANALYSIS', 20, 160);
-    doc.setFontSize(12);
-    let yPos = 175;
-    Object.entries(statusCounts).forEach(([status, count]) => {
-      const percentage = ((count / actualTotalOrders) * 100).toFixed(1);
-      const statusEN = statusTranslations[status] || status;
-      doc.text(`• ${statusEN}: ${count} orders (${percentage}%)`, 25, yPos);
-      yPos += 10;
-    });
-    
-    const last7Days = new Date();
-    last7Days.setDate(last7Days.getDate() - 7);
-    const recentOrders = orders.filter(order => new Date(order.created_at) >= last7Days);
-    const recentRevenue = recentOrders.reduce((sum, order) => sum + order.total_amount, 0);
-    
-    doc.setFontSize(14);
-    doc.text('3. LAST 7 DAYS PERFORMANCE', 20, yPos + 10);
-    doc.setFontSize(12);
-    doc.text(`• Orders last 7 days: ${recentOrders.length} orders`, 25, yPos + 25);
-    doc.text(`• Revenue last 7 days: $${recentRevenue.toLocaleString('en-US')}`, 25, yPos + 35);
-    doc.text(`• Average orders/day: ${(recentOrders.length / 7).toFixed(1)} orders`, 25, yPos + 45);
-    
-    doc.addPage();
-    doc.setFontSize(14);
-    doc.text('4. RECENT ORDER DETAILS', 20, 20);
-    
-    let yPosition = 40;
-    doc.setFontSize(10);
-    doc.text('Order ID', 20, yPosition);
-    doc.text('Customer', 60, yPosition);
-    doc.text('Total', 110, yPosition);
-    doc.text('Status', 150, yPosition);
-    doc.text('Date', 180, yPosition);
-    yPosition += 10;
-    
-    doc.line(20, yPosition - 5, 200, yPosition - 5);
-    
-    orders.slice(0, 25).forEach((order) => {
-      const orderId = order.id.slice(0, 8);
-      const customerName = order.users.full_name || 'Customer';
-      const amount = `$${order.total_amount.toLocaleString('en-US')}`;
-      const statusEN = statusTranslations[order.status] || order.status;
-      const date = new Date(order.created_at).toLocaleDateString('en-US');
-      
-      doc.setFontSize(8);
-      doc.text(orderId, 20, yPosition);
-      doc.text(customerName.length > 15 ? customerName.substring(0, 15) + '...' : customerName, 60, yPosition);
-      doc.text(amount, 110, yPosition);
-      doc.text(statusEN, 150, yPosition);
-      doc.text(date, 180, yPosition);
-      yPosition += 10;
-      
-      if (yPosition > 270) {
-        doc.addPage();
-        yPosition = 20;
-      }
-    });
-    
-    const pageCount = doc.internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      doc.text(`Page ${i}/${pageCount} - Long Chau Pharmacy Management System`, 20, 285);
-      doc.text(`Report generated on ${new Date().toLocaleString('en-US')}`, 20, 290);
-    }
-    
-    const fileName = `long-chau-report-${new Date().toISOString().split('T')[0]}.pdf`;
-    doc.save(fileName);
-  };
-
-  const generateCustomerReport = () => {
-    const doc = new jsPDF();
-    
-    doc.setFont('arial', 'normal');
-    doc.setFontSize(20);
-    doc.text('CUSTOMER REPORT - LONG CHAU', 20, 20);
-    
-    doc.setFontSize(12);
-    doc.text(`Created by: ${user?.full_name || user?.username}`, 20, 35);
-    doc.text(`Export date: ${new Date().toLocaleDateString('en-US')}`, 20, 45);
-    
-    const uniqueCustomers = new Set(orders.map(order => order.user_id)).size;
-    const totalOrdersCount = orders.length;
-    const avgOrdersPerCustomer = uniqueCustomers > 0 ? totalOrdersCount / uniqueCustomers : 0;
-    
-    const customerOrderCounts = orders.reduce((acc, order) => {
-      const customerId = order.user_id;
-      acc[customerId] = (acc[customerId] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-    
-    const topCustomer = Object.entries(customerOrderCounts).reduce((max, [id, count]) => 
-      count > max.count ? { id, count } : max, { id: '', count: 0 });
-    
-    const topCustomerInfo = orders.find(order => order.user_id === topCustomer.id)?.users;
-    
-    doc.setFontSize(14);
-    doc.text('CUSTOMER STATISTICS', 20, 65);
-    doc.setFontSize(12);
-    doc.text(`• Total customers: ${uniqueCustomers} customers`, 25, 80);
-    doc.text(`• Total orders: ${totalOrdersCount} orders`, 25, 90);
-    doc.text(`• Average orders per customer: ${avgOrdersPerCustomer.toFixed(1)} orders`, 25, 100);
-    doc.text(`• Most active customer: ${topCustomerInfo?.full_name || 'N/A'} (${topCustomer.count} orders)`, 25, 110);
-    
-    doc.save(`customer-report-${new Date().toISOString().split('T')[0]}.pdf`);
-  };
-
-  const generateTrendReport = () => {
-    const doc = new jsPDF();
-    
-    doc.setFont('arial', 'normal');
-    doc.setFontSize(20);
-    doc.text('TREND REPORT - LONG CHAU', 20, 20);
-    
-    doc.setFontSize(12);
-    doc.text(`Created by: ${user?.full_name || user?.username}`, 20, 35);
-    doc.text(`Export date: ${new Date().toLocaleDateString('en-US')}`, 20, 45);
-    
-    const now = new Date();
-    const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const previous7Days = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-    
-    const recentOrders = orders.filter(order => new Date(order.created_at) >= last7Days);
-    const previousOrders = orders.filter(order => {
-      const orderDate = new Date(order.created_at);
-      return orderDate >= previous7Days && orderDate < last7Days;
-    });
-    
-    const recentRevenue = recentOrders.reduce((sum, order) => sum + order.total_amount, 0);
-    const previousRevenue = previousOrders.reduce((sum, order) => sum + order.total_amount, 0);
-    
-    const revenueGrowth = previousRevenue > 0 ? ((recentRevenue - previousRevenue) / previousRevenue * 100).toFixed(1) : '0';
-    const orderGrowth = previousOrders.length > 0 ? ((recentOrders.length - previousOrders.length) / previousOrders.length * 100).toFixed(1) : '0';
-    
-    doc.setFontSize(14);
-    doc.text('7-DAY TREND ANALYSIS', 20, 65);
-    doc.setFontSize(12);
-    doc.text(`• Revenue growth: ${revenueGrowth}%`, 25, 80);
-    doc.text(`• Order growth: ${orderGrowth}%`, 25, 90);
-    doc.text(`• Last 7 days: ${recentOrders.length} orders, $${recentRevenue.toLocaleString('en-US')}`, 25, 100);
-    doc.text(`• Previous 7 days: ${previousOrders.length} orders, $${previousRevenue.toLocaleString('en-US')}`, 25, 110);
-    doc.text(`• Assessment: ${parseFloat(revenueGrowth) > 5 ? 'Strong growth' : parseFloat(revenueGrowth) > 0 ? 'Stable growth' : 'Needs improvement'}`, 25, 120);
-    
-    doc.save(`trend-report-${new Date().toISOString().split('T')[0]}.pdf`);
+  const handleMonthChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSelectedMonth(e.target.value);
+    setLoading(true);
+    fetchOrders();
   };
 
   const statusTranslations: Record<string, string> = {
@@ -518,7 +279,6 @@ const Manager: React.FC = () => {
     );
   }
 
-  const totalSales = filteredAnalytics.length > 0 ? filteredAnalytics.reduce((sum, item) => sum + item.total_sales, 0) : 0;
   const avgOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
 
   return (
@@ -535,36 +295,13 @@ const Manager: React.FC = () => {
                 Long Chau business performance overview
               </p>
             </div>
-            <div className="flex space-x-3">
-              <button
-                onClick={generatePDFReport}
-                className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors inline-flex items-center"
-              >
-                <FileText className="w-5 h-5 mr-2" />
-                Comprehensive Report
-              </button>
-              <button
-                onClick={generateCustomerReport}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
-              >
-                <Users2 className="w-5 h-5 mr-2" />
-                Customer Report
-              </button>
-              <button
-                onClick={generateTrendReport}
-                className="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700 transition-colors inline-flex items-center"
-              >
-                <TrendingDown className="w-5 h-5 mr-2" />
-                Trend Report
-              </button>
-              <Link
-                to="/inventory"
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
-              >
-                <Package className="w-5 h-5 mr-2" />
-                Quản lý kho hàng
-              </Link>
-            </div>
+            <Link
+              to="/inventory"
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center"
+            >
+              <Package className="w-5 h-5 mr-2" />
+              Quản lý kho hàng
+            </Link>
           </div>
         </div>
 
@@ -578,21 +315,17 @@ const Manager: React.FC = () => {
           </div>
         )}
 
-        {/* Time Period Selector */}
+        {/* Month Selector */}
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select Time Period
+            Select Month
           </label>
-          <select
-            value={timePeriod}
-            onChange={(e) => handleTimePeriodChange(e.target.value)}
+          <input
+            type="month"
+            value={selectedMonth}
+            onChange={handleMonthChange}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="7days">Last 7 Days</option>
-            <option value="30days">Last 30 Days</option>
-            <option value="90days">Last 90 Days</option>
-            <option value="all">All Time</option>
-          </select>
+          />
         </div>
 
         {/* Stats Cards */}
@@ -605,7 +338,7 @@ const Manager: React.FC = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Actual Revenue</p>
+                <p className="text-sm text-gray-600 mb-1">Revenue ({selectedMonth})</p>
                 <p className="text-2xl font-bold text-gray-900">
                   ${totalRevenue.toLocaleString()}
                 </p>
@@ -624,7 +357,7 @@ const Manager: React.FC = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Actual Orders</p>
+                <p className="text-sm text-gray-600 mb-1">Orders ({selectedMonth})</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {totalOrders.toLocaleString()}
                 </p>
@@ -643,7 +376,7 @@ const Manager: React.FC = () => {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-600 mb-1">Total Customers</p>
+                <p className="text-sm text-gray-600 mb-1">Customers ({selectedMonth})</p>
                 <p className="text-2xl font-bold text-gray-900">
                   {totalCustomers.toLocaleString()}
                 </p>
@@ -676,132 +409,135 @@ const Manager: React.FC = () => {
 
         {/* Charts and Analytics */}
         <div className="space-y-8">
-          {/* Revenue Analytics Chart */}
-          {filteredAnalytics.length === 0 ? (
+          {/* Revenue Chart */}
+          {chartData.length === 0 ? (
             <div className="bg-white rounded-xl shadow-lg p-6 text-center">
-              <p className="text-gray-600">No analytics data available for the selected period.</p>
+              <p className="text-gray-600">No revenue data available for {selectedMonth}.</p>
             </div>
           ) : (
-            <RevenueChart 
-              data={filteredAnalytics} 
-              loading={loading}
-            />
-          )}
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Recent Orders */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
+              transition={{ duration: 0.5 }}
               className="bg-white rounded-xl shadow-lg p-6"
             >
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900">Recent Orders</h2>
-                <ShoppingBag className="w-6 h-6 text-blue-600" />
-              </div>
-              
-              <div className="space-y-4">
-                {orders.slice(0, 5).map((order) => (
-                  <div key={order.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <Package className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">
-                          {order.users.full_name || 'Customer'}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {order.order_items.length} products • {new Date(order.created_at).toLocaleDateString('en-US')}
-                        </p>
-                      </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-4">
+                Daily Revenue - {new Date(selectedMonth + '-01').toLocaleString('en-US', { month: 'long', year: 'numeric' })}
+              </h2>
+              <RevenueChart data={chartData} loading={loading} />
+            </motion.div>
+          )}
+
+          {/* Recent Orders */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="bg-white rounded-xl shadow-lg p-6"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-gray-900">Recent Orders</h2>
+              <ShoppingBag className="w-6 h-6 text-blue-600" />
+            </div>
+            <div className="space-y-4">
+              {orders.slice(0, 5).map((order) => (
+                <div key={order.id} className="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <Package className="w-5 h-5 text-blue-600" />
                     </div>
-                    <div className="text-right">
-                      <p className="font-bold text-blue-600">
-                        ${order.total_amount.toLocaleString()}
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {order.users.full_name || 'Customer'}
                       </p>
-                      <p className={`text-xs px-2 py-1 rounded-full ${
-                        order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                        order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                        'bg-blue-100 text-blue-800'
-                      }`}>
-                        {statusTranslations[order.status] || order.status}
+                      <p className="text-sm text-gray-600">
+                        {order.order_items.length} products • {new Date(order.created_at).toLocaleDateString('en-US')}
                       </p>
                     </div>
                   </div>
-                ))}
-              </div>
-            </motion.div>
+                  <div className="text-right">
+                    <p className="font-bold text-blue-600">
+                      ${order.total_amount.toLocaleString()}
+                    </p>
+                    <p className={`text-xs px-2 py-1 rounded-full ${
+                      order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                      order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                      'bg-blue-100 text-blue-800'
+                    }`}>
+                      {statusTranslations[order.status] || order.status}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
 
-            {/* All Orders Table */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.7 }}
-              className="bg-white rounded-xl shadow-lg p-6"
-            >
-              <h2 className="text-xl font-bold text-gray-900 mb-6">
-                All Orders
-              </h2>
-              
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Order ID</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Customer</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Products</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Total</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
-                      <th className="text-left py-3 px-4 font-medium text-gray-700">Order Date</th>
+          {/* All Orders Table */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.7 }}
+            className="bg-white rounded-xl shadow-lg p-6"
+          >
+            <h2 className="text-xl font-bold text-gray-900 mb-6">
+              All Orders ({selectedMonth})
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Order ID</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Customer</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Products</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Total</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Status</th>
+                    <th className="text-left py-3 px-4 font-medium text-gray-700">Order Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.slice(0, 20).map((order) => (
+                    <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
+                      <td className="py-3 px-4 text-gray-900">
+                        <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                          {order.id.slice(0, 8)}
+                        </code>
+                      </td>
+                      <td className="py-3 px-4 text-gray-900">
+                        <div>
+                          <p className="font-medium">{order.users.full_name || 'Customer'}</p>
+                          <p className="text-sm text-gray-500">{order.users.email}</p>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-gray-900">
+                        <div>
+                          <p className="font-medium">{order.order_items.length} products</p>
+                          <p className="text-sm text-gray-500">
+                            {order.order_items.slice(0, 2).map(item => item.products.name).join(', ')}
+                            {order.order_items.length > 2 && '...'}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-gray-900 font-medium">
+                        ${order.total_amount.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                          order.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                          order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {statusTranslations[order.status] || order.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-gray-900">
+                        {new Date(order.created_at).toLocaleDateString('en-US')}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {orders.slice(0, 20).map((order) => (
-                      <tr key={order.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-4 text-gray-900">
-                          <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                            {order.id.slice(0, 8)}
-                          </code>
-                        </td>
-                        <td className="py-3 px-4 text-gray-900">
-                          <div>
-                            <p className="font-medium">{order.users.full_name || 'Customer'}</p>
-                            <p className="text-sm text-gray-500">{order.users.email}</p>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-gray-900">
-                          <div>
-                            <p className="font-medium">{order.order_items.length} products</p>
-                            <p className="text-sm text-gray-500">
-                              {order.order_items.slice(0, 2).map(item => item.products.name).join(', ')}
-                              {order.order_items.length > 2 && '...'}
-                            </p>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-gray-900 font-medium">
-                          ${order.total_amount.toLocaleString()}
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                            order.status === 'delivered' ? 'bg-green-100 text-green-800' :
-                            order.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                            'bg-blue-100 text-blue-800'
-                          }`}>
-                            {statusTranslations[order.status] || order.status}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-gray-900">
-                          {new Date(order.created_at).toLocaleDateString('en-US')}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </motion.div>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
         </div>
       </div>
     </div>

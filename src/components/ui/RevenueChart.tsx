@@ -42,17 +42,18 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ data, loading = false }) =>
       <div className="relative h-96 overflow-x-auto">
         <div className="min-w-full h-full flex items-end justify-between px-4 pb-12">
           {data.map((item, index) => {
-            const height = item.revenue === 0 ? 4 : (item.revenue / maxRevenue) * 90; // 90% of container height, min 4px for zero revenue
+            const height = item.revenue === 0 ? 8 : (item.revenue / maxRevenue) * 95; // 95% of container height, min 8px for zero revenue
 
             return (
               <div key={item.date} className="flex flex-col items-center space-y-2 min-w-0 flex-1">
                 {/* Bar Chart */}
-                <div className="relative flex-1 flex items-end w-full max-w-16">
+                <div className="relative flex-1 flex items-end w-full max-w-24 min-w-20">
                   <motion.div
-                    initial={{ height: 0 }}
-                    animate={{ height: `${height}%` }}
+                    initial={{ height: 0, scale: 1 }}
+                    animate={{ height: `${height}%`, scale: 1 }}
+                    whileHover={{ scale: 1.05 }}
                     transition={{ duration: 0.8, delay: index * 0.1 }}
-                    className="w-full bg-gradient-to-t from-blue-600 to-blue-400 rounded-t-md relative group cursor-pointer hover:from-blue-700 hover:to-blue-500 transition-colors"
+                    className="w-full bg-gradient-to-t from-blue-600 to-blue-400 border border-blue-700 rounded-t-md relative group cursor-pointer hover:from-blue-700 hover:to-blue-500 transition-colors"
                   >
                     {/* Tooltip */}
                     <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap">

@@ -713,7 +713,7 @@ const Manager: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.6 }}
+          transition={{ duration: 0.5, delay: 0.7 }}
           className="bg-white rounded-xl shadow-lg p-6 mt-8"
         >
           <h2 className="text-xl font-bold text-gray-900 mb-6">
